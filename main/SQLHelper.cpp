@@ -31,7 +31,7 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
-#define DB_VERSION 143
+#define DB_VERSION 144
 
 extern http::server::CWebServerHelper m_webservers;
 extern std::string szWWWFolder;
@@ -567,6 +567,7 @@ const char* sqlCreateUserSessions =
 " [AuthToken] VARCHAR(100) UNIQUE NOT NULL,"
 " [ExpirationDate] DATETIME NOT NULL,"
 " [RemoteHost] VARCHAR(50) NOT NULL,"
+" [ClientID] VARCHAR(100) DEFAULT '',"
 " [LastUpdate] DATETIME DEFAULT(datetime('now', 'localtime')),"
 " PRIMARY KEY([SessionID]));";
 
@@ -2757,6 +2758,13 @@ bool CSQLHelper::OpenDatabase()
 			int iEnabled = 0;
 			if (!GetPreferencesVar("GCMEnabled", iEnabled))
 				UpdatePreferencesVar("FCMEnabled", iEnabled);
+		}
+		if (dbversion < 144)
+		{
+			if (!DoesColumnExistsInTable("MDay", "UserSessions"))
+			{
+				query("ALTER TABLE UserSessions ADD COLUMN [ClientID] VARCHAR(100) DEFAULT ''");
+			}
 		}
 	}
 	else if (bNewInstall)

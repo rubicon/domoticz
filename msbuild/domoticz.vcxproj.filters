@@ -2207,6 +2207,9 @@
     <ClInclude Include="..\notifications\NotificationFCM.h">
       <Filter>Notifications</Filter>
     </ClInclude>
+    <ClInclude Include="..\webserver\session_store.hpp">
+      <Filter>Webserver</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\webserver\Base64.cpp">

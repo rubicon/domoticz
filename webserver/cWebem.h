@@ -41,6 +41,7 @@ namespace http {
 			std::string remote_host;
 			std::string auth_token;
 			std::string username;
+			std::string client_id;
 			int reply_status;
 			time_t timeout;
 			time_t expires;

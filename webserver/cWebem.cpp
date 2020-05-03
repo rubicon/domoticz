@@ -47,7 +47,7 @@ namespace http {
 			m_io_service(),
 			m_settings(settings),
 			m_authmethod(AUTH_LOGIN),
-			mySessionStore(NULL),
+			mySessionStore(nullptr),
 			myRequestHandler(doc_root, this),
 			m_DigistRealm("Domoticz.com"),
 			m_session_clean_timer(m_io_service, boost::posix_time::minutes(1)),
@@ -63,7 +63,7 @@ namespace http {
 		cWebem::~cWebem()
 		{
 			// Remove reference to CWebServer before its deletion (fix a "pure virtual method called" exception on server termination)
-			mySessionStore = NULL;
+			mySessionStore = nullptr;
 			// Delete server (no need with smart pointer)
 		}
 
@@ -1172,9 +1172,9 @@ namespace http {
 				}
 			}
 			// Clean up expired sessions from database in order to avoid to wait for the domoticz restart (long time running instance)
-			if (mySessionStore != NULL)
+			if (mySessionStore != nullptr)
 			{
-				this->mySessionStore->CleanSessions();
+				mySessionStore->CleanSessions();
 			}
 			// Schedule next cleanup
 			m_session_clean_timer.expires_at(m_session_clean_timer.expires_at() + boost::posix_time::minutes(15));
@@ -2154,7 +2154,18 @@ namespace http {
 
 					if (session.reply_status != reply::ok) // forbidden
 					{
-						rep = reply::stock_reply(static_cast<reply::status_type>(session.reply_status));
+						if (
+							(session.reply_status == reply::moved_permanently)
+							|| (session.reply_status == reply::moved_temporarily)
+							)
+						{
+							rep.status = (reply::status_type)session.reply_status;
+							rep.content = reply::stock_reply(static_cast<reply::status_type>(session.reply_status)).content;
+							reply::add_header(&rep, "Content-Length", std::to_string(rep.content.size()));
+							reply::add_header(&rep, "Content-Type", "text/html");
+						}
+						else
+							rep = reply::stock_reply(static_cast<reply::status_type>(session.reply_status));
 						return;
 					}
 

@@ -355,6 +355,10 @@ namespace http {
 			m_pWebEm->RegisterPageCode("/uvccapture.cgi", boost::bind(&CWebServer::GetInternalCameraSnapshot, this, _1, _2, _3));
 			m_pWebEm->RegisterPageCode("/images/floorplans/plan", boost::bind(&CWebServer::GetFloorplanImage, this, _1, _2, _3));
 
+			m_pWebEm->RegisterPageCode("/oauth2/auth", boost::bind(&CWebServer::OAuth2_Authorize, this, _1, _2, _3), true);
+			m_pWebEm->RegisterPageCode("/oauth2/token", boost::bind(&CWebServer::OAuth2_Token, this, _1, _2, _3), true);
+			m_pWebEm->RegisterPageCode("/oauth2/token/revoke", boost::bind(&CWebServer::OAuth2_Token_Revoke, this, _1, _2, _3), true);
+
 			m_pWebEm->RegisterPageCode("/storesettings", boost::bind(&CWebServer::PostSettings, this, _1, _2, _3));
 			m_pWebEm->RegisterActionCode("setrfxcommode", boost::bind(&CWebServer::SetRFXCOMMode, this, _1, _2, _3));
 			m_pWebEm->RegisterActionCode("rfxupgradefirmware", boost::bind(&CWebServer::RFXComUpgradeFirmware, this, _1, _2, _3));
@@ -17553,14 +17557,15 @@ namespace http {
 			}
 			else {
 				std::vector<std::vector<std::string> > result;
-				result = m_sql.safe_query("SELECT SessionID, Username, AuthToken, ExpirationDate FROM UserSessions WHERE SessionID = '%q'",
+				result = m_sql.safe_query("SELECT Username, AuthToken, ClientID, ExpirationDate FROM UserSessions WHERE SessionID = '%q'",
 					sessionId.c_str());
 				if (!result.empty()) {
-					session.id = result[0][0].c_str();
-					session.username = base64_decode(result[0][1]);
-					session.auth_token = result[0][2].c_str();
+					session.id = sessionId;
+					session.username = base64_decode(result[0].at(0));
+					session.auth_token = result[0].at(1).c_str();
+					session.client_id = result[0].at(2).c_str();
+					std::string sExpirationDate = result[0].at(3);
 
-					std::string sExpirationDate = result[0][3];
 					//time_t now = mytime(NULL);
 					struct tm tExpirationDate;
 					ParseSQLdatetime(session.expires, tExpirationDate, sExpirationDate);
@@ -17587,25 +17592,23 @@ namespace http {
 			localtime_r(&session.expires, &ltime);
 			strftime(szExpires, sizeof(szExpires), "%Y-%m-%d %H:%M:%S", &ltime);
 
-			std::string remote_host = (session.remote_host.size() <= 50) ? // IPv4 : 15, IPv6 : (39|45)
-				session.remote_host : session.remote_host.substr(0, 50);
-
 			WebEmStoredSession storedSession = GetSession(session.id);
 			if (storedSession.id.empty()) {
 				m_sql.safe_query(
-					"INSERT INTO UserSessions (SessionID, Username, AuthToken, ExpirationDate, RemoteHost) VALUES ('%q', '%q', '%q', '%q', '%q')",
+					"INSERT INTO UserSessions (SessionID, Username, AuthToken, ClientID, ExpirationDate, RemoteHost) VALUES ('%q', '%q', '%q', '%q', '%q', '%q')",
 					session.id.c_str(),
 					base64_encode(session.username).c_str(),
 					session.auth_token.c_str(),
+					session.client_id.c_str(),
 					szExpires,
-					remote_host.c_str());
+					session.remote_host.c_str());
 			}
 			else {
 				m_sql.safe_query(
 					"UPDATE UserSessions set AuthToken = '%q', ExpirationDate = '%q', RemoteHost = '%q', LastUpdate = datetime('now', 'localtime') WHERE SessionID = '%q'",
 					session.auth_token.c_str(),
 					szExpires,
-					remote_host.c_str(),
+					session.remote_host.c_str(),
 					session.id.c_str());
 			}
 		}
@@ -17618,9 +17621,7 @@ namespace http {
 			if (sessionId.empty()) {
 				return;
 			}
-			m_sql.safe_query(
-				"DELETE FROM UserSessions WHERE SessionID = '%q'",
-				sessionId.c_str());
+			m_sql.safe_query("DELETE FROM UserSessions WHERE SessionID = '%q'",	sessionId.c_str());
 		}
 
 		/**
@@ -17628,8 +17629,7 @@ namespace http {
 		 */
 		void CWebServer::CleanSessions() {
 			//_log.Log(LOG_STATUS, "SessionStore : clean...");
-			m_sql.safe_query(
-				"DELETE FROM UserSessions WHERE ExpirationDate < datetime('now', 'localtime')");
+			m_sql.safe_query("DELETE FROM UserSessions WHERE ExpirationDate < datetime('now', 'localtime')");
 		}
 
 		/**
@@ -17641,6 +17641,111 @@ namespace http {
 		 */
 		void CWebServer::RemoveUsersSessions(const std::string& username, const WebEmSession & exceptSession) {
 			m_sql.safe_query("DELETE FROM UserSessions WHERE (Username=='%q') and (SessionID!='%q')", username.c_str(), exceptSession.id.c_str());
+		}
+
+#define OATH2_CLIENT_SECRET "4b16e50cc21c437aa0128143526d2dedc8b3fb31c10c4fffa0efb86e400b8302"
+		void CWebServer::OAuth2_Authorize(WebEmSession& session, const request& req, reply& rep)
+		{
+			std::string grant_type = request::findValue(&req, "grant_type");
+			std::string username = request::findValue(&req, "username");
+			std::string password = request::findValue(&req, "password");
+			std::string scope = request::findValue(&req, "scope");
+			std::string state = request::findValue(&req, "state");
+			std::string client_id = request::findValue(&req, "client_id");
+			std::string client_secret = request::findValue(&req, "client_secret");
+
+			if (
+				grant_type.empty()
+				|| (grant_type != "password")
+				|| username.empty()
+				|| password.empty()
+				|| scope.empty()	//do we want this mandentory ? Seems like a good idea
+				|| client_id.empty()
+				|| client_secret.empty()
+				|| (client_secret != OATH2_CLIENT_SECRET)
+				)
+			{
+				session.reply_status = reply::forbidden;
+				return;
+			}
+			int iUser = FindUser(username.c_str());
+			if (iUser == -1) {
+				// log brute force attack
+				session.reply_status = reply::forbidden;
+				_log.Log(LOG_ERROR, "Failed OAuth2 login attempt from %s for user '%s' !", session.remote_host.c_str(), username.c_str());
+				return;
+			}
+			if (m_users[iUser].Password != GenerateMD5Hash(password)) {
+				// log brute force attack
+				session.reply_status = reply::forbidden;
+				_log.Log(LOG_ERROR, "Failed OAuth2 login attempt from %s for user '%s' !", session.remote_host.c_str(), username.c_str());
+				return;
+			}
+
+			std::vector<std::vector<std::string> > result;
+			result = m_sql.safe_query("SELECT SessionID FROM UserSessions WHERE (RemoteHost = '%q' AND ClientID = '%q' AND Username = '%q')", session.remote_host.c_str(), client_id.c_str(), base64_encode(username).c_str());
+			if (!result.empty()) {
+				//Already exists, remove this record
+				RemoveSession(result[0][0]);
+				m_pWebEm->RemoveSession(result[0][0]);
+			}
+
+			//Generate tokens
+			std::string access_token = GenerateMD5Hash(base64_encode(GenerateUUID()));
+			std::string refresh_token = GenerateMD5Hash(base64_encode(GenerateUUID()));
+
+			int token_duration = 86400; //24 hours
+
+			Json::Value root;
+			root["token_type"] = "Bearer";
+			root["scope"] = scope;
+			root["access_token"] = access_token;
+			root["refresh_token"] = refresh_token;
+			root["expires_in"] = token_duration;
+
+			reply::set_content(&rep, root.toStyledString());
+			session.reply_status = reply::ok;
+
+			WebEmSession tmp_session;
+			tmp_session.client_id = client_id;
+			tmp_session.remote_host = session.remote_host;
+			tmp_session.username = username;
+			tmp_session.id = access_token;
+			tmp_session.auth_token = refresh_token;
+			tmp_session.expires = mytime(NULL) + token_duration;
+			tmp_session.rememberme = false;
+			tmp_session.isnew = false;
+			tmp_session.forcelogin = false;
+			tmp_session.rights = 0;
+
+			session_store_impl_ptr sstore = m_pWebEm->GetSessionStore();
+			if (sstore != nullptr)
+			{
+				WebEmStoredSession storedSession;
+				storedSession.id = tmp_session.id;
+				storedSession.auth_token = tmp_session.auth_token;
+				storedSession.username = tmp_session.username;
+				storedSession.expires = tmp_session.expires;
+				storedSession.remote_host = tmp_session.remote_host;
+				storedSession.client_id = tmp_session.client_id;
+				sstore->StoreSession(storedSession);
+			}
+			m_pWebEm->AddSession(tmp_session);
+
+			//std::string szAuthCode = "1234567890";
+			//std::string szRedirect = "https://www.domoticz.com/oauth2?code=" + szAuthCode + "&scope=" + scope;
+			//session.reply_status = reply::moved_permanently;
+			//reply::add_header(&rep, "Location", szRedirect);
+		}
+
+		void CWebServer::OAuth2_Token(WebEmSession& session, const request& req, reply& rep)
+		{
+			while (1 == 0);
+		}
+
+		void CWebServer::OAuth2_Token_Revoke(WebEmSession& session, const request& req, reply& rep)
+		{
+			while (1 == 0);
 		}
 
 	} //server

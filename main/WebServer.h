@@ -47,6 +47,10 @@ public:
 	void GetDatabaseBackup(WebEmSession & session, const request& req, reply & rep);
 	void Post_UploadCustomIcon(WebEmSession & session, const request& req, reply & rep);
 
+	void OAuth2_Authorize(WebEmSession& session, const request& req, reply& rep);
+	void OAuth2_Token(WebEmSession& session, const request& req, reply& rep);
+	void OAuth2_Token_Revoke(WebEmSession& session, const request& req, reply& rep);
+
 	void PostSettings(WebEmSession& session, const request& req, reply& rep);
 	void PostLoginCheck(WebEmSession& session, const request& req, reply& rep);
 	void SetRFXCOMMode(WebEmSession & session, const request& req, std::string & redirect_uri);

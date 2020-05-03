@@ -160,6 +160,7 @@ http::server::ssl_server_settings secure_webserver_settings;
 bool bStartWebBrowser = true;
 bool g_bUseWatchdog = true;
 bool g_bIsWSL = false;
+extern int accSeed;
 
 #define DAEMON_NAME "domoticz"
 #define PID_FILE "/var/run/domoticz.pid" 
@@ -806,6 +807,7 @@ int main(int argc, char**argv)
 
 	/* call srand once for the entire app */
 	std::srand((unsigned int)std::time(nullptr));
+	accSeed = std::rand();
 	szRandomUUID = GenerateUUID();    
 
 	GetAppVersion();

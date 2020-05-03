@@ -5,50 +5,49 @@
  *      Author: gaudryc
  */
 
-#ifndef WEBSERVER_SESSION_STORE_HPP_
-#define WEBSERVER_SESSION_STORE_HPP_
+#pragma once
 
 namespace http {
-namespace server {
+	namespace server {
 
-typedef struct _tWebEmStoredSession {
-	std::string id;
-	std::string remote_host;
-	std::string auth_token;
-	std::string username;
-	time_t expires;
-} WebEmStoredSession;
+		typedef struct _tWebEmStoredSession {
+			std::string id;
+			std::string remote_host;
+			std::string auth_token;
+			std::string username;
+			std::string client_id;
+			time_t expires;
+		} WebEmStoredSession;
 
-/**
- * Gives access to the user session store.
- */
-class session_store {
-public:
-	virtual ~session_store() {};
+		/**
+		 * Gives access to the user session store.
+		 */
+		class session_store {
+		public:
+			virtual ~session_store() {};
 
-	/**
-	 * Retrieve user session from store
-	 */
-	virtual const WebEmStoredSession GetSession(const std::string & sessionId)=0;
+			/**
+			 * Retrieve user session from store
+			 */
+			virtual const WebEmStoredSession GetSession(const std::string& sessionId) = 0;
 
-	/**
-	 * Save user session into store
-	 */
-	virtual void StoreSession(const WebEmStoredSession & session)=0;
+			/**
+			 * Save user session into store
+			 */
+			virtual void StoreSession(const WebEmStoredSession& session) = 0;
 
-	/**
-	 * Remove user session from store
-	 */
-	virtual void RemoveSession(const std::string & sessionId)=0;
+			/**
+			 * Remove user session from store
+			 */
+			virtual void RemoveSession(const std::string& sessionId) = 0;
 
-	/**
-	 * Remove expired user sessions from store
-	 */
-	virtual void CleanSessions()=0;
-};
+			/**
+			 * Remove expired user sessions from store
+			 */
+			virtual void CleanSessions() = 0;
+		};
 
-typedef session_store* session_store_impl_ptr;
+		typedef session_store* session_store_impl_ptr;
 
+	}
 }
-}
-#endif /* WEBSERVER_SESSION_STORE_HPP_ */

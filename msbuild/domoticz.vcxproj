@@ -763,6 +763,7 @@
     <ClInclude Include="..\webserver\GZipHelper.h" />
     <ClInclude Include="..\webserver\proxycereal.hpp" />
     <ClInclude Include="..\webserver\proxyclient.h" />
+    <ClInclude Include="..\webserver\session_store.hpp" />
     <ClInclude Include="..\webserver\WebsocketHandler.h" />
     <ClInclude Include="..\webserver\Websockets.hpp" />
     <ClInclude Include="..\hardware\BleBox.h" />

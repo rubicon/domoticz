@@ -1203,7 +1203,7 @@ static struct
 } entropy = { 0, (time_t) 0, (clock_t) 0, 0 };
 
 static unsigned char * p = (unsigned char *) (&entropy + 1);
-static int accSeed = 0;
+int accSeed = 0;
 
 int GenerateRandomNumber(const int range)
 {
@@ -1419,7 +1419,7 @@ std::string GenerateUUID() // DCE/RFC 4122
 	{
 		if (uuid[ii] == ' ')
 		{
-			uuid[ii] = hexCHARS[(ii == 19) ? (8 + (std::rand() & 0x03)) : std::rand() & 0x0F];
+			uuid[ii] = hexCHARS[(ii == 19) ? (8 + GenerateRandomNumber(0x03)) : GenerateRandomNumber(0x0F)];
 		}
 	}
 	return uuid;
