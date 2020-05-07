@@ -17738,12 +17738,96 @@ namespace http {
 			//reply::add_header(&rep, "Location", szRedirect);
 		}
 
-		void CWebServer::OAuth2_Token(WebEmSession& session, const request& req, reply& rep)
+		void CWebServer::OAuth2_Token_Revoke(WebEmSession& session, const request& req, reply& rep)
 		{
-			while (1 == 0);
+			std::string sClientID, sClientSecret, sToken;
+
+			std::string sAuthorization = request::get_req_header(&req, "Authorization");
+			if (!sAuthorization.empty())
+			{
+				//format should be: client_id:<clientid>, client_secret:<client_secret>
+				std::vector<std::string> results;
+				StringSplit(sAuthorization, ",", results);
+				if (results.size() != 2)
+				{
+					session.reply_status = reply::bad_request;
+					return;
+				}
+				std::vector<std::string> results2;
+				StringSplit(results[0], ":", results2);
+				if (results2.size() != 2)
+				{
+					session.reply_status = reply::bad_request;
+					return;
+				}
+				stdstring_trim(results2[0]);
+				stdstring_trim(results2[1]);
+				if (results2[0]!="client_id")
+				{
+					session.reply_status = reply::bad_request;
+					return;
+				}
+				sClientID = results2[1];
+				StringSplit(results[1], ":", results2);
+				if (results2.size() != 2)
+				{
+					session.reply_status = reply::bad_request;
+					return;
+				}
+				stdstring_trim(results2[0]);
+				stdstring_trim(results2[1]);
+				if (results2[0] != "client_secret")
+				{
+					session.reply_status = reply::bad_request;
+					return;
+				}
+				sClientSecret = results2[1];
+			}
+			//Body should be in JSON format
+			Json::Value root;
+			if (!ParseJSon(req.content, root))
+			{
+				session.reply_status = reply::bad_request;
+				return;
+			}
+			if (root["access_token"].empty())
+			{
+				session.reply_status = reply::bad_request;
+				return;
+			}
+			sToken = root["access_token"].asString();
+
+			if (!root["client_id"].empty())
+				sClientID = root["client_id"].asString();
+			if (!root["client_secret"].empty())
+				sClientSecret = root["client_secret"].asString();
+
+			if (
+				sClientID.empty()
+				|| sClientSecret.empty()
+				|| sToken.empty()
+				)
+			{
+				session.reply_status = reply::bad_request;
+				return;
+			}
+
+			if (sClientSecret != OATH2_CLIENT_SECRET)
+			{
+				session.reply_status = reply::forbidden;
+				return;
+			}
+
+			std::vector<std::vector<std::string> > result;
+			result = m_sql.safe_query("SELECT SessionID FROM UserSessions WHERE (ClientID = '%q' AND SessionID = '%q')", sClientID.c_str(), sToken.c_str());
+			if (!result.empty()) {
+				//Already exists, remove this record
+				RemoveSession(result[0][0]);
+				m_pWebEm->RemoveSession(result[0][0]);
+			}
 		}
 
-		void CWebServer::OAuth2_Token_Revoke(WebEmSession& session, const request& req, reply& rep)
+		void CWebServer::OAuth2_Token(WebEmSession& session, const request& req, reply& rep)
 		{
 			while (1 == 0);
 		}
