@@ -128,6 +128,8 @@ static const _tGuiLanguage guiLanguage[] =
 	{ NULL, NULL }
 };
 
+const int oath2_token_duration = 86400; //24 hours
+
 extern http::server::CWebServerHelper m_webservers;
 
 namespace http {
@@ -17643,6 +17645,22 @@ namespace http {
 			m_sql.safe_query("DELETE FROM UserSessions WHERE (Username=='%q') and (SessionID!='%q')", username.c_str(), exceptSession.id.c_str());
 		}
 
+		static std::string GenerateJSonErrorResponse(const char* fmt, ...)
+		{
+			va_list args;
+			va_start(args, fmt);
+			char cbuffer[1024]; cbuffer[0] = 0;
+			int res = vsnprintf(cbuffer, sizeof(cbuffer), fmt, args);
+			va_end(args);
+
+			Json::Value root;
+			if (res < 0)
+				root["error"] = "WSGJER: Out of memory, or invalid printf!....";
+			else
+				root["error"] = std::string(cbuffer);
+			return root.toStyledString();
+		}
+
 #define OATH2_CLIENT_SECRET "4b16e50cc21c437aa0128143526d2dedc8b3fb31c10c4fffa0efb86e400b8302"
 		void CWebServer::OAuth2_Authorize(WebEmSession& session, const request& req, reply& rep)
 		{
@@ -17665,6 +17683,7 @@ namespace http {
 				|| (client_secret != OATH2_CLIENT_SECRET)
 				)
 			{
+				reply::set_content(&rep, GenerateJSonErrorResponse("invalid_request"));
 				session.reply_status = reply::forbidden;
 				return;
 			}
@@ -17694,16 +17713,15 @@ namespace http {
 			std::string access_token = GenerateMD5Hash(base64_encode(GenerateUUID()));
 			std::string refresh_token = GenerateMD5Hash(base64_encode(GenerateUUID()));
 
-			int token_duration = 86400; //24 hours
-
 			Json::Value root;
 			root["token_type"] = "Bearer";
 			root["scope"] = scope;
 			root["access_token"] = access_token;
 			root["refresh_token"] = refresh_token;
-			root["expires_in"] = token_duration;
+			root["expires_in"] = oath2_token_duration;
 
 			reply::set_content(&rep, root.toStyledString());
+			reply::add_header_content_type(&rep, "application/json;charset=UTF-8");
 			session.reply_status = reply::ok;
 
 			WebEmSession tmp_session;
@@ -17712,7 +17730,7 @@ namespace http {
 			tmp_session.username = username;
 			tmp_session.id = access_token;
 			tmp_session.auth_token = refresh_token;
-			tmp_session.expires = mytime(NULL) + token_duration;
+			tmp_session.expires = mytime(NULL) + oath2_token_duration;
 			tmp_session.rememberme = false;
 			tmp_session.isnew = false;
 			tmp_session.forcelogin = false;
@@ -17740,86 +17758,80 @@ namespace http {
 
 		void CWebServer::OAuth2_Token_Revoke(WebEmSession& session, const request& req, reply& rep)
 		{
-			std::string sClientID, sClientSecret, sToken;
+			std::string client_id, client_secret, sToken;
 
-			std::string sAuthorization = request::get_req_header(&req, "Authorization");
-			if (!sAuthorization.empty())
+			const char* authorization_header;
+			if ((authorization_header = request::get_req_header(&req, "Authorization")) != nullptr)
 			{
+				std::string sAuthorization(authorization_header);
 				//format should be: client_id:<clientid>, client_secret:<client_secret>
 				std::vector<std::string> results;
 				StringSplit(sAuthorization, ",", results);
-				if (results.size() != 2)
+				if (results.size() == 2)
 				{
-					session.reply_status = reply::bad_request;
-					return;
+					std::vector<std::string> results2;
+					StringSplit(results[0], ":", results2);
+					if (results2.size() == 2)
+					{
+						stdstring_trim(results2[0]);
+						stdstring_trim(results2[1]);
+						if (results2[0] == "client_id")
+						{
+							client_id = results2[1];
+							StringSplit(results[1], ":", results2);
+							if (results2.size() == 2)
+							{
+								stdstring_trim(results2[0]);
+								stdstring_trim(results2[1]);
+								if (results2[0] == "client_secret")
+									client_secret = results2[1];
+							}
+						}
+					}
 				}
-				std::vector<std::string> results2;
-				StringSplit(results[0], ":", results2);
-				if (results2.size() != 2)
-				{
-					session.reply_status = reply::bad_request;
-					return;
-				}
-				stdstring_trim(results2[0]);
-				stdstring_trim(results2[1]);
-				if (results2[0]!="client_id")
-				{
-					session.reply_status = reply::bad_request;
-					return;
-				}
-				sClientID = results2[1];
-				StringSplit(results[1], ":", results2);
-				if (results2.size() != 2)
-				{
-					session.reply_status = reply::bad_request;
-					return;
-				}
-				stdstring_trim(results2[0]);
-				stdstring_trim(results2[1]);
-				if (results2[0] != "client_secret")
-				{
-					session.reply_status = reply::bad_request;
-					return;
-				}
-				sClientSecret = results2[1];
 			}
+
 			//Body should be in JSON format
 			Json::Value root;
 			if (!ParseJSon(req.content, root))
 			{
+				reply::set_content(&rep, GenerateJSonErrorResponse("invalid_request"));
 				session.reply_status = reply::bad_request;
 				return;
 			}
 			if (root["access_token"].empty())
 			{
+				reply::set_content(&rep, GenerateJSonErrorResponse("invalid_request"));
 				session.reply_status = reply::bad_request;
 				return;
 			}
 			sToken = root["access_token"].asString();
 
 			if (!root["client_id"].empty())
-				sClientID = root["client_id"].asString();
+				client_id = root["client_id"].asString();
 			if (!root["client_secret"].empty())
-				sClientSecret = root["client_secret"].asString();
+				client_secret = root["client_secret"].asString();
 
 			if (
-				sClientID.empty()
-				|| sClientSecret.empty()
+				client_id.empty()
+				|| client_secret.empty()
 				|| sToken.empty()
 				)
 			{
+				reply::set_content(&rep, GenerateJSonErrorResponse("invalid_request"));
 				session.reply_status = reply::bad_request;
 				return;
 			}
 
-			if (sClientSecret != OATH2_CLIENT_SECRET)
+			if (client_secret != OATH2_CLIENT_SECRET)
 			{
-				session.reply_status = reply::forbidden;
+				reply::set_content(&rep, GenerateJSonErrorResponse("invalid_client"));
+				session.reply_status = reply::bad_request;
 				return;
 			}
 
 			std::vector<std::vector<std::string> > result;
-			result = m_sql.safe_query("SELECT SessionID FROM UserSessions WHERE (ClientID = '%q' AND SessionID = '%q')", sClientID.c_str(), sToken.c_str());
+			result = m_sql.safe_query("SELECT SessionID FROM UserSessions WHERE (ClientID = '%q' AND SessionID = '%q')", client_id.c_str(), sToken.c_str());
 			if (!result.empty()) {
 				//Already exists, remove this record
 				RemoveSession(result[0][0]);
@@ -17829,7 +17841,147 @@ namespace http {
 
 		void CWebServer::OAuth2_Token(WebEmSession& session, const request& req, reply& rep)
 		{
-			while (1 == 0);
+			//Body should be in JSON format
+			Json::Value root;
+			if (!ParseJSon(req.content, root))
+			{
+				reply::set_content(&rep, GenerateJSonErrorResponse("invalid_request"));
+				session.reply_status = reply::bad_request;
+				return;
+			}
+
+			std::string client_id, client_secret;
+
+			const char* authorization_header;
+			if ((authorization_header = request::get_req_header(&req, "Authorization")) != nullptr)
+			{
+				std::string sAuthorization(authorization_header);
+				//format should be: client_id:<clientid>, client_secret:<client_secret>
+				std::vector<std::string> results;
+				StringSplit(sAuthorization, ",", results);
+				if (results.size() == 2)
+				{
+					std::vector<std::string> results2;
+					StringSplit(results[0], ":", results2);
+					if (results2.size() == 2)
+					{
+						stdstring_trim(results2[0]);
+						stdstring_trim(results2[1]);
+						if (results2[0] == "client_id")
+						{
+							client_id = results2[1];
+							StringSplit(results[1], ":", results2);
+							if (results2.size() == 2)
+							{
+								stdstring_trim(results2[0]);
+								stdstring_trim(results2[1]);
+								if (results2[0] == "client_secret")
+									client_secret = results2[1];
+							}
+						}
+					}
+				}
+			}
+
+			if (!root["client_id"].empty())
+				client_id = root["client_id"].asString();
+			if (!root["client_secret"].empty())
+				client_secret = root["client_secret"].asString();
+
+			if (
+				client_id.empty()
+				|| client_secret.empty()
+				)
+			{
+				reply::set_content(&rep, GenerateJSonErrorResponse("invalid_request"));
+				session.reply_status = reply::bad_request;
+				return;
+			}
+
+			if (client_secret != OATH2_CLIENT_SECRET)
+			{
+				reply::set_content(&rep, GenerateJSonErrorResponse("invalid_client"));
+				session.reply_status = reply::bad_request;
+				return;
+			}
+
+			if (
+				root["grant_type"].empty()
+				|| root["refresh_token"].empty()
+				)
+			{
+				reply::set_content(&rep, GenerateJSonErrorResponse("invalid_request"));
+				session.reply_status = reply::bad_request;
+				return;
+			}
+			if (root["grant_type"].asString() != "refresh_token")
+			{
+				reply::set_content(&rep, GenerateJSonErrorResponse("invalid_grant"));
+				session.reply_status = reply::bad_request;
+				return;
+			}
+			std::string refresh_token = root["refresh_token"].asString();
+
+			std::string scope;
+			if (!root["scope"].empty())
+				scope = root["scope"].asString();
+
+			std::vector<std::vector<std::string> > result;
+			result = m_sql.safe_query("SELECT SessionID, Username FROM UserSessions WHERE (ClientID = '%q' AND AuthToken = '%q')", client_id.c_str(), refresh_token.c_str());
+			if (result.empty())
+			{
+				reply::set_content(&rep, GenerateJSonErrorResponse("invalid_grant"));
+				session.reply_status = reply::bad_request;
+				return;
+			}
+
+			std::string SessionID = result[0][0];
+			std::string username = base64_decode(result[0][1]);
+
+			//remove this record
+			RemoveSession(SessionID);
+			m_pWebEm->RemoveSession(SessionID);
+
+			//Generate new tokens
+			std::string access_token = GenerateMD5Hash(base64_encode(GenerateUUID()));
+			refresh_token = GenerateMD5Hash(base64_encode(GenerateUUID()));
+
+			Json::Value root_ret;
+			root_ret["token_type"] = "Bearer";
+			root_ret["scope"] = scope;
+			root_ret["access_token"] = access_token;
+			root_ret["refresh_token"] = refresh_token;
+			root_ret["expires_in"] = oath2_token_duration;
+
+			reply::set_content(&rep, root_ret.toStyledString());
+			reply::add_header_content_type(&rep, "application/json;charset=UTF-8");
+			session.reply_status = reply::ok;
+
+			WebEmSession tmp_session;
+			tmp_session.client_id = client_id;
+			tmp_session.remote_host = session.remote_host;
+			tmp_session.username = username;
+			tmp_session.id = access_token;
+			tmp_session.auth_token = refresh_token;
+			tmp_session.expires = mytime(NULL) + oath2_token_duration;
+			tmp_session.rememberme = false;
+			tmp_session.isnew = false;
+			tmp_session.forcelogin = false;
+			tmp_session.rights = 0;
+
+			session_store_impl_ptr sstore = m_pWebEm->GetSessionStore();
+			if (sstore != nullptr)
+			{
+				WebEmStoredSession storedSession;
+				storedSession.id = tmp_session.id;
+				storedSession.auth_token = tmp_session.auth_token;
+				storedSession.username = tmp_session.username;
+				storedSession.expires = tmp_session.expires;
+				storedSession.remote_host = tmp_session.remote_host;
+				storedSession.client_id = tmp_session.client_id;
+				sstore->StoreSession(storedSession);
+			}
+			m_pWebEm->AddSession(tmp_session);
 		}
 
 	} //server

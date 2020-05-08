@@ -139,7 +139,7 @@ namespace http {
 			void Logout();
 			int parse_auth_header(const request& req, struct ah *ah);
 			std::string generateAuthToken(const WebEmSession & session, const request & req);
-			bool checkAuthToken(WebEmSession & session);
+			bool checkAuthToken(WebEmSession & session, const bool bFromOAuth2);
 			void removeAuthToken(const std::string & sessionId);
 	};
 		// forward declaration for friend declaration

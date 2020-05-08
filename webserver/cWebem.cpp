@@ -1710,6 +1710,24 @@ namespace http {
 				session.rights = 2;
 			}
 
+			const char* authorization_header;
+			if ((authorization_header = request::get_req_header(&req, "Authorization")) != nullptr)
+			{
+				std::string sauthorization_header(authorization_header);
+				if (sauthorization_header.find("Bearer ") == 0)
+				{
+					std::string sBearer = sauthorization_header.substr(7);
+					session.id = sBearer;
+					bool expired = (!checkAuthToken(session));
+
+					WebEmSession* pSession = myWebem->GetSession(sBearer);
+					if (pSession)
+					{
+						while (1 == 0);
+					}
+				}
+			}
+
 			//Check cookie if still valid
 			const char* cookie_header = request::get_req_header(&req, "Cookie");
 			if (cookie_header != NULL)
@@ -1907,34 +1925,41 @@ namespace http {
 		/**
 		 * Check authentication token if exists and restore the user session if necessary
 		 */
-		bool cWebemRequestHandler::checkAuthToken(WebEmSession & session)
+		bool cWebemRequestHandler::checkAuthToken(WebEmSession& session, const bool bFromOAuth2)
 		{
 			session_store_impl_ptr sstore = myWebem->GetSessionStore();
 			if (sstore == NULL)
 			{
-				_log.Log(LOG_ERROR, "CheckAuthToken([%s_%s]) : no store defined", session.id.c_str(), session.auth_token.c_str());
+				_log.Log(LOG_ERROR, "CheckAuthToken: no store defined");
 				return true;
 			}
 
-			if (session.id.empty() || session.auth_token.empty())
+			if (session.id.empty())
 			{
-				_log.Log(LOG_ERROR, "CheckAuthToken(%s_%s) : session id or auth token is empty", session.id.c_str(), session.auth_token.c_str());
+				_log.Log(LOG_ERROR, "CheckAuthToken: session id is empty");
 				return false;
 			}
+			if ((!bFromOAuth2) && (session.auth_token.empty()))
+			{
+				_log.Log(LOG_ERROR, "CheckAuthToken: auth token is empty (%s)", session.id.c_str());
+				return false;
+			}
+
 			WebEmStoredSession storedSession = sstore->GetSession(session.id);
 			if (storedSession.id.empty())
 			{
-				_log.Log(LOG_ERROR, "CheckAuthToken(%s_%s) : session id not found", session.id.c_str(), session.auth_token.c_str());
+				_log.Log(LOG_ERROR, "CheckAuthToken: session id not found (%s)", session.id.c_str());
 				return false;
 			}
-			if (storedSession.auth_token != GenerateMD5Hash(session.auth_token))
+
+			if ((!bFromOAuth2) && (storedSession.auth_token != GenerateMD5Hash(session.auth_token)))
 			{
-				_log.Log(LOG_ERROR, "CheckAuthToken(%s_%s) : auth token mismatch", session.id.c_str(), session.auth_token.c_str());
+				_log.Log(LOG_ERROR, "CheckAuthToken: auth token mismatch (%s/%s)", session.id.c_str(), session.auth_token.c_str());
 				removeAuthToken(session.id);
 				return false;
 			}
 
-			_log.Debug(DEBUG_WEBSERVER, "[web:%s] CheckAuthToken(%s_%s_%s) : user authenticated", myWebem->GetPort().c_str(), session.id.c_str(), session.auth_token.c_str(), session.username.c_str());
+			_log.Debug(DEBUG_WEBSERVER, "[web:%s] CheckAuthToken(%s_%s_%s): user authenticated", myWebem->GetPort().c_str(), session.id.c_str(), session.auth_token.c_str(), session.username.c_str());
 
 			if (session.rights == 2)
 			{
@@ -1977,7 +2002,7 @@ namespace http {
 
 				if (!userExists || sessionExpires)
 				{
-					_log.Debug(DEBUG_WEBSERVER, "[web:%s] CheckAuthToken(%s_%s) : cannot restore session, user not found or session expired", myWebem->GetPort().c_str(), session.id.c_str(), session.auth_token.c_str());
+					_log.Debug(DEBUG_WEBSERVER, "[web:%s] CheckAuthToken(%s_%s): cannot restore session, user not found or session expired", myWebem->GetPort().c_str(), session.id.c_str(), session.auth_token.c_str());
 					removeAuthToken(session.id);
 					return false;
 				}
@@ -1985,11 +2010,10 @@ namespace http {
 				WebEmSession* oldSession = myWebem->GetSession(session.id);
 				if (oldSession == NULL)
 				{
-					_log.Debug(DEBUG_WEBSERVER, "[web:%s] CheckAuthToken(%s_%s_%s) : restore session", myWebem->GetPort().c_str(), session.id.c_str(), session.auth_token.c_str(), session.username.c_str());
+					_log.Debug(DEBUG_WEBSERVER, "[web:%s] CheckAuthToken(%s_%s_%s): restore session", myWebem->GetPort().c_str(), session.id.c_str(), session.auth_token.c_str(), session.username.c_str());
 					myWebem->AddSession(session);
 				}
 			}
-
 			return true;
 		}
 
@@ -2097,10 +2121,6 @@ namespace http {
 						removeAuthToken(sSID);
 					}
 				}
-				session.username = "";
-				session.rights = -1;
-				session.forcelogin = true;
-				bCheckAuthentication = false; // do not authenticate the user, just logout
 				send_authorization_request(rep);
 				return;
 			}

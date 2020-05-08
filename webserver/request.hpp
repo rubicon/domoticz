@@ -50,7 +50,7 @@ public:
 		return tolower(* (const unsigned char *) s);
 	}
 
-	// Return HTTP header value, or NULL if not found.
+	// Return HTTP header value, or nullptr if not found.
 	static const char *get_req_header(const request *preq, const char *name)
 	{
 		std::vector<header>::const_iterator itt;
@@ -60,7 +60,7 @@ public:
 			if (!mg_strcasecmp(name, itt->name.c_str()))
 				return itt->value.c_str();
 		}
-		return NULL;
+		return nullptr;
 	}
 
 	/** Find the value of a name set by a form submit action */
