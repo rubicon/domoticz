@@ -1718,13 +1718,16 @@ namespace http {
 				{
 					std::string sBearer = sauthorization_header.substr(7);
 					session.id = sBearer;
-					bool expired = (!checkAuthToken(session));
 
-					WebEmSession* pSession = myWebem->GetSession(sBearer);
-					if (pSession)
+					WebEmSession* pSession = myWebem->GetSession(session.id);
+					if (!pSession)
 					{
-						while (1 == 0);
+						if (!checkAuthToken(session, true))
+							return false;
+						pSession = myWebem->GetSession(session.id);
 					}
+					if (pSession)
+						return true;
 				}
 			}
 
@@ -1776,7 +1779,7 @@ namespace http {
 						{
 							session.id = sSID;
 							session.auth_token = sAuthToken;
-							expired = (!checkAuthToken(session));
+							expired = (!checkAuthToken(session, false));
 						}
 						else
 						{
@@ -1822,7 +1825,7 @@ namespace http {
 					}
 					session.auth_token = sAuthToken;
 					// Check authen_token and restore session
-					if (checkAuthToken(session))
+					if (checkAuthToken(session, false))
 					{
 						// user is authenticated
 						return true;
