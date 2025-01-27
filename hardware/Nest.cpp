@@ -3,14 +3,11 @@
 #include "../main/Helper.h"
 #include "../main/Logger.h"
 #include "hardwaretypes.h"
-#include "../main/localtime_r.h"
 #include "../main/RFXtrx.h"
 #include "../main/SQLHelper.h"
 #include "../httpclient/HTTPClient.h"
 #include "../main/mainworker.h"
 #include "../main/json_helper.h"
-
-#define round(a) (int)(a + .5)
 
 const std::string NEST_LOGIN_PATH = "https://home.nest.com/user/login";
 const std::string NEST_GET_STATUS = "/v2/mobile/user.";
@@ -116,20 +113,6 @@ void CNest::Do_Work()
 	}
 	Logout();
 	Log(LOG_STATUS, "Worker stopped...");
-}
-
-void CNest::SendSetPointSensor(const unsigned char Idx, const float Temp, const std::string &defaultname)
-{
-	_tThermostat thermos;
-	thermos.subtype = sTypeThermSetpoint;
-	thermos.id1 = 0;
-	thermos.id2 = 0;
-	thermos.id3 = 0;
-	thermos.id4 = Idx;
-	thermos.dunit = 0;
-	thermos.temp = Temp;
-
-	sDecodeRXMessage(this, (const unsigned char *)&thermos, defaultname.c_str(), 255, nullptr);
 }
 
 // Creates and updates switch used to log Heating and/or Colling.
@@ -298,14 +281,8 @@ void CNest::UpdateSmokeSensor(const unsigned char Idx, const bool bOn, const std
 			bNoChange = true;
 		if (bNoChange)
 		{
-			time_t now = time(nullptr);
-			struct tm ltime;
-			localtime_r(&now, &ltime);
-
-			char szLastUpdate[40];
-			sprintf(szLastUpdate, "%04d-%02d-%02d %02d:%02d:%02d", ltime.tm_year + 1900, ltime.tm_mon + 1, ltime.tm_mday, ltime.tm_hour, ltime.tm_min, ltime.tm_sec);
-
-			m_sql.safe_query("UPDATE DeviceStatus SET LastUpdate='%q' WHERE(HardwareID == %d) AND (DeviceID == '%q')", szLastUpdate, m_HwdID, szIdx);
+			std::string sLastUpdate = TimeToString(nullptr, TF_DateTime);
+			m_sql.safe_query("UPDATE DeviceStatus SET LastUpdate='%q' WHERE (HardwareID == %d) AND (DeviceID == '%q')", sLastUpdate.c_str(), m_HwdID, szIdx);
 			return;
 		}
 	}
@@ -535,7 +512,7 @@ void CNest::GetMeterDetails()
 		return;
 	}
 
-	size_t iThermostat = 0;
+	int iThermostat = 0;
 	for (auto ittStructure = root["structure"].begin(); ittStructure != root["structure"].end(); ++ittStructure)
 	{
 		Json::Value nstructure = *ittStructure;
@@ -595,7 +572,7 @@ void CNest::GetMeterDetails()
 			if (!nshared["target_temperature"].empty())
 			{
 				float currentSetpoint = nshared["target_temperature"].asFloat();
-				SendSetPointSensor((const unsigned char)(iThermostat * 3) + 1, currentSetpoint, Name + " Setpoint");
+				SendSetPointSensor(0, 0, 0, (const unsigned char)(iThermostat * 3) + 1, 0, 255, currentSetpoint, Name + " Setpoint");
 			}
 			// Room Temperature/Humidity
 			if (!nshared["current_temperature"].empty())
@@ -651,8 +628,8 @@ void CNest::SetSetpoint(const int idx, const float temp)
 		if (!Login())
 			return;
 	}
-	size_t iThermostat = (idx - 1) / 3;
-	if (iThermostat > m_thermostats.size())
+	int iThermostat = (idx - 1) / 3;
+	if (iThermostat > (int)m_thermostats.size())
 		return;
 
 	std::vector<std::string> ExtraHeaders;
@@ -697,8 +674,8 @@ bool CNest::SetAway(const unsigned char Idx, const bool bIsAway)
 			return false;
 	}
 
-	size_t iThermostat = (Idx - 3) / 3;
-	if (iThermostat > m_thermostats.size())
+	int iThermostat = (Idx - 3) / 3;
+	if (iThermostat > (int)m_thermostats.size())
 		return false;
 
 	std::vector<std::string> ExtraHeaders;
@@ -737,8 +714,8 @@ bool CNest::SetManualEcoMode(const unsigned char Idx, const bool bIsManualEcoMod
 			return false;
 	}
 
-	size_t iThermostat = (Idx - 4) / 3;
-	if (iThermostat > m_thermostats.size())
+	int iThermostat = (Idx - 4) / 3;
+	if (iThermostat > (int)m_thermostats.size())
 		return false;
 
 	std::vector<std::string> ExtraHeaders;

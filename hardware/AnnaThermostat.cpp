@@ -3,7 +3,6 @@
 #include "../main/Helper.h"
 #include "../main/Logger.h"
 #include "hardwaretypes.h"
-#include "../main/localtime_r.h"
 #include "../main/RFXtrx.h"
 #include "../main/SQLHelper.h"
 #include "../httpclient/HTTPClient.h"
@@ -11,7 +10,7 @@
 
 #include "../tinyxpath/tinyxml.h"
 
-#define round(a) ( int ) ( a + .5 )
+//GizMoCuz: Whoever is maintaining this class, please make use of the internal functions (like SendTempSensor) and remove them internal functions in here
 
 // Plugwise Anna Thermostat
 // Anna Sensors
@@ -35,6 +34,8 @@
 #define sAnnaFailedBurnerStarts             17
 #define sAnnaBurnerOperationTime            18
 #define sAnnaHotWaterBurnerOperationTime    19
+#define sAnnaHotWaterFlow                   20
+#define sAnnaHotWaterTemperature            21
 
 const std::string ANNA_VERSION       = "1.0.1";
 const std::string ANNA_GET_STATUS    = "/core/appliances";
@@ -157,19 +158,6 @@ void CAnnaThermostat::Do_Work()
 
 	}
 	Log(LOG_STATUS, "AnnaTherm: Worker stopped...");
-}
-
-void CAnnaThermostat::SendSetPointSensor(const unsigned char Idx, const float Temp, const std::string& defaultname)
-{
-	_tThermostat thermos;
-	thermos.subtype = sTypeThermSetpoint;
-	thermos.id1 = 0;
-	thermos.id2 = 0;
-	thermos.id3 = 0;
-	thermos.id4 = Idx;
-	thermos.dunit = 1;
-	thermos.temp = Temp;
-	sDecodeRXMessage(this, (const unsigned char *)&thermos, defaultname.c_str(), 255, nullptr);
 }
 
 bool CAnnaThermostat::WriteToHardware(const char* pdata, const unsigned char /*length*/)
@@ -533,7 +521,7 @@ void CAnnaThermostat::GetMeterDetails()
 				if (!tmpstr.empty())
 				{
 					float temperature = (float)atof(tmpstr.c_str());
-					SendSetPointSensor(sAnnaThermostat, temperature, sname);
+					SendSetPointSensor(0, 0, 0, sAnnaThermostat, 1, 255, temperature, sname);
 				}
 			}
 			else if (sname == "intended_boiler_temperature")
@@ -681,7 +669,7 @@ void CAnnaThermostat::GetMeterDetails()
                 tmpstr = GetPeriodMeasurement(pElem);
                 if (!tmpstr.empty())
                 {
-                    float level = (float)atof(tmpstr.c_str());
+                    float level = (float)atof(tmpstr.c_str()) * 100.F;
                     SendPercentageSensor(sAnnaModulationLevel, 1, 255, level, sname);
                 }
             }
@@ -739,9 +727,27 @@ void CAnnaThermostat::GetMeterDetails()
                     SendCustomSensor(sAnnaHotWaterBurnerOperationTime, 1, 255, hour, sname, "Hour(s)");
                 }
             }
-		}
-		pAppliance = pAppliance->NextSiblingElement("appliance");
-	}
+            else if (sname == "domestic_hot_water_flow")
+            {
+                tmpstr = GetPeriodMeasurement(pElem);
+                if (!tmpstr.empty())
+                {
+                    float flow = (float)atof(tmpstr.c_str());
+                    SendWaterflowSensor(sAnnaHotWaterFlow, 1, 255, flow, sname);
+                }
+            }
+            else if (sname == "domestic_hot_water_temperature")
+            {
+                tmpstr = GetPeriodMeasurement(pElem);
+                if (!tmpstr.empty())
+                {
+                    float temperature = (float)atof(tmpstr.c_str());
+                    SendTempSensor(sAnnaHotWaterTemperature, 255, temperature, sname);
+                }
+            }
+        }
+        pAppliance = pAppliance->NextSiblingElement("appliance");
+    }
 }
 
 // Checks if the Username and password are filled in

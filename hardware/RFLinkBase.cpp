@@ -5,7 +5,6 @@
 #include "../main/Helper.h"
 #include "../main/RFXtrx.h"
 #include "hardwaretypes.h"
-#include "../main/localtime_r.h"
 #include "../main/SQLHelper.h"
 
 #include "../main/mainworker.h"
@@ -145,8 +144,8 @@ const _tRFLinkStringIntHelper rfswitchcommands[] =
 	{ "ALLOFF", gswitch_sGroupOff },
 	{ "DIM", gswitch_sDim },
 	{ "BRIGHT", gswitch_sBright },
-	{ "UP", blinds_sOpen },
-	{ "DOWN", blinds_sClose },
+	{ "UP", gswitch_sOpen },
+	{ "DOWN", gswitch_sClose },
 	{ "STOP", gswitch_sStop },
 	{ "COLOR", gswitch_sColor },
 	{ "DISCO+", gswitch_sDiscop },
@@ -197,6 +196,7 @@ CRFLinkBase::CRFLinkBase()
 	memset(&m_rfbuffer,0,sizeof(m_rfbuffer));
 	m_rfbufferpos = 0;
 	m_retrycntr = RFLINK_RETRY_DELAY;
+	m_cmdacktimeout = 3;      // command ack wait timeout
 	/*
 	ParseLine("20;4F;LIVCOL;ID=1a2b3c4;SWITCH=00;RGBW=ec5a;CMD=ON;");
 	ParseLine("20;08;NewKaku;ID=31c42a;SWITCH=2;CMD=OFF;");
@@ -251,8 +251,6 @@ void CRFLinkBase::ParseData(const char *data, size_t len)
 
 }
 
-#define round(a) ( int ) ( a + .5 )
-
 void GetSwitchType(const char* ID, const unsigned char unit, const unsigned char devType, const unsigned char subType, int &switchType)
 {
 	switchType = 0;
@@ -275,7 +273,7 @@ bool CRFLinkBase::WriteToHardware(const char *pdata, const unsigned char length)
 	std::string switchtype = GetGeneralRFLinkFromInt(rfswitches, pSwitch->subtype);
 	if (switchtype.empty())
 	{
-		Log(LOG_ERROR, "trying to send unknown switch type: %d", pSwitch->subtype);
+		Log(LOG_ERROR, "Trying to send unknown switch type: %d", pSwitch->subtype);
 		return false;
 	}
 	//Log(LOG_ERROR, "id: %d", pSwitch->id);
@@ -293,15 +291,22 @@ bool CRFLinkBase::WriteToHardware(const char *pdata, const unsigned char length)
 	if (pSwitch->type == pTypeGeneralSwitch) {
 		std::string switchcmnd = GetGeneralRFLinkFromInt(rfswitchcommands, pSwitch->cmnd);
 		if (pSwitch->cmnd != gswitch_sStop) {
-			if ((m_SwitchType == STYPE_VenetianBlindsEU) || (m_SwitchType == STYPE_Blinds) || (m_SwitchType == STYPE_BlindsInverted)) {
+			if (
+				(m_SwitchType == STYPE_VenetianBlindsEU)
+				|| (m_SwitchType == STYPE_Blinds)
+				)
+			{
 				switchcmnd = GetGeneralRFLinkFromInt(rfblindcommands, pSwitch->cmnd);
 			}
-			else {
-				if (m_SwitchType == STYPE_VenetianBlindsUS) {
-				//if ((m_SwitchType == STYPE_VenetianBlindsUS) || (m_SwitchType == STYPE_BlindsInverted)) {
+			else
+			{
+				if (m_SwitchType == STYPE_VenetianBlindsUS)
+				{
 					switchcmnd = GetGeneralRFLinkFromInt(rfblindcommands, pSwitch->cmnd);
-					if (pSwitch->cmnd == blinds_sOpen) switchcmnd = GetGeneralRFLinkFromInt(rfblindcommands, blinds_sClose);
-					else if (pSwitch->cmnd == blinds_sClose) switchcmnd = GetGeneralRFLinkFromInt(rfblindcommands, blinds_sOpen);
+					if (pSwitch->cmnd == blinds_sOpen)
+						switchcmnd = GetGeneralRFLinkFromInt(rfblindcommands, blinds_sClose);
+					else if (pSwitch->cmnd == blinds_sClose)
+						switchcmnd = GetGeneralRFLinkFromInt(rfblindcommands, blinds_sOpen);
 				}
 			}
 		}
@@ -310,18 +315,18 @@ bool CRFLinkBase::WriteToHardware(const char *pdata, const unsigned char length)
         // check setlevel command
         if (pSwitch->cmnd == gswitch_sSetLevel) {
            // Get device level to set
-	   float fvalue = (15.0F / 100.0F) * float(pSwitch->level);
-	   if (fvalue > 15.0F)
-		   fvalue = 15.0F; // 99 is fully on
-	   int svalue = round(fvalue);
-	   //Log(LOG_ERROR, "level: %d", svalue);
-	   char buffer[50] = { 0 };
-	   sprintf(buffer, "%d", svalue);
-	   switchcmnd = buffer;
+		   float fvalue = (15.0F / 100.0F) * float(pSwitch->level);
+		   if (fvalue > 15.0F)
+			   fvalue = 15.0F; // 99 is fully on
+		   int svalue = ground(fvalue);
+		   //Log(LOG_ERROR, "level: %d", svalue);
+		   char buffer[50] = { 0 };
+		   sprintf(buffer, "%d", svalue);
+		   switchcmnd = buffer;
 	    }
 
 		if (switchcmnd.empty()) {
-			Log(LOG_ERROR, "trying to send unknown switch command: %d", pSwitch->cmnd);
+			Log(LOG_ERROR, "Trying to send unknown switch command: %d", pSwitch->cmnd);
 			return false;
 		}
 
@@ -354,10 +359,12 @@ bool CRFLinkBase::WriteToHardware(const char *pdata, const unsigned char length)
 
 		// Wait for an OK response from RFLink to make sure the command was executed
 		while (m_bTXokay == false) {
-			if (difftime(btime,atime) > 4) {
-				Log(LOG_ERROR, "TX time out...");
+			double diff = difftime(btime,atime);
+			if ( diff > (double)m_cmdacktimeout ) {
+				_log.Log(LOG_ERROR, "RFLink: TX time out (%f sec)..." , diff );
 				return false;
 			}
+			sleep_milliseconds(100);
 			btime = mytime(nullptr);
 		}
 		return true;
@@ -476,7 +483,7 @@ bool CRFLinkBase::WriteToHardware(const char *pdata, const unsigned char length)
 			bSendOn = true;
 			break;
 		default:
-			Log(LOG_ERROR, "trying to send unknown led switch command: %d", pLed->command);
+			Log(LOG_ERROR, "Trying to send unknown led switch command: %d", pLed->command);
 			return false;
 	}
 
@@ -1054,7 +1061,7 @@ bool CRFLinkBase::ParseLine(const std::string &sLine)
 		}
 #endif
 		if (bHaveWindDir)
-			twindir = round(float(windir) * 22.5F);
+			twindir = ground(float(windir) * 22.5F);
 		if (!bHaveWindSpeed) windspeed = twindspeed;
 		if (!bHaveWindGust) windgust = twindgust;
 		if (!bHaveWindTemp) windtemp = twindtemp;
@@ -1154,7 +1161,7 @@ bool CRFLinkBase::ParseLine(const std::string &sLine)
 //Webserver helpers
 namespace http {
 	namespace server {
-		void CWebServer::RType_CreateRFLinkDevice(WebEmSession & session, const request& req, Json::Value &root)
+		void CWebServer::Cmd_CreateRFLinkDevice(WebEmSession & session, const request& req, Json::Value &root)
 		{
 			if (session.rights != 2)
 			{
@@ -1163,7 +1170,7 @@ namespace http {
 			}
 
 			std::string idx = request::findValue(&req, "idx");
-			std::string scommand = request::findValue(&req, "command");
+			std::string scommand = request::findValue(&req, "rflcommand");
 			if (idx.empty() || scommand.empty())
 			{
 				return;
@@ -1175,7 +1182,7 @@ namespace http {
 			#endif
 
 			bool bCreated = false;						// flag to know if the command was a success
-			CRFLinkBase *pRFLINK = reinterpret_cast<CRFLinkBase*>(m_mainworker.GetHardware(atoi(idx.c_str())));
+			CRFLinkBase *pRFLINK = dynamic_cast<CRFLinkBase*>(m_mainworker.GetHardware(atoi(idx.c_str())));
 			if (pRFLINK == nullptr)
 				return;
 

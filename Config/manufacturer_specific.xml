@@ -1689,6 +1689,7 @@
     <Product config="simon/10002034-13X.xml" id="00da" name="S100 Socket iO" type="0001"/>
     <Product config="simon/10002041-13X.xml" id="0022" name="S100 Socket iO" type="0009"/>
     <Product config="simon/10002080-13X.xml" id="0000" name="S100 Rocker iO for Roller Blind" type="0004"/>
+    <Product config="simon/10000810-13X.xml" id="0000" name="S100 Thermostat" type="000b"/>
   </Manufacturer>
   <Manufacturer id="0045" name="Sine Wireless"></Manufacturer>
   <Manufacturer id="0266" name="Siterwell Technology HK"></Manufacturer>
@@ -1781,6 +1782,7 @@
     <Product config="thermofloor/heatitz8.xml" id="a305" name="Heatit Z-Push Button 8" type="0300"/>
     <Product config="thermofloor/heatit20a.xml" id="020a" name="Heatit Z-Water TF 20a" type="0003"/>
     <Product config="thermofloor/heatitz4.xml" id="a306" name="Heatit Z-Push Button 4" type="0300"/>
+    <Product config="thermofloor/heatitzwc.xml" id="0x2403" name="Heatit Wall Controller" type="0x0004"/>
   </Manufacturer>
   <Manufacturer id="0317" name="Think Simple srl"></Manufacturer>
   <Manufacturer id="022A" name="TIMEVALVE"></Manufacturer>
@@ -2095,4 +2097,7 @@
   </Manufacturer>
   <Manufacturer id="0021" name="Zykronix"></Manufacturer>
   <Manufacturer id="0135" name="ZyXEL"></Manufacturer>
+  <Manufacturer id="0460" name="Shelly Qubino">
+    <Product config="shellyqubino/waveshutter.xml" id="0082" name="Wave Shutter" type="0003"/>
+  </Manufacturer>
 </ManufacturerSpecificData>

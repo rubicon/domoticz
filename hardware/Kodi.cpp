@@ -633,7 +633,7 @@ void CKodiNode::handleRead(const boost::system::error_code& e, std::size_t bytes
 		//do something with the data
 		std::string sData(m_Buffer.data(), bytes_transferred);
 		sData = m_RetainedData + sData;  // if there was some data left over from last time add it back in
-		int iPos = 1;
+		size_t iPos = 1;
 		while (iPos) {
 			iPos = sData.find("}{", 0) + 1;		//  Look for message separater in case there is more than one
 			if (!iPos) // no, just one or part of one
@@ -1086,7 +1086,7 @@ void CKodi::AddNode(const std::string &Name, const std::string &IPAddress, const
 	sprintf(szID, "%X%02X%02X%02X", 0, 0, (ID & 0xFF00) >> 8, ID & 0xFF);
 
 	//Also add a light (push) device
-	m_sql.InsertDevice(m_HwdID, szID, 1, pTypeLighting2, sTypeAC, STYPE_Media, 0, "Unavailable", Name, 12, 255, 1);
+	m_sql.InsertDevice(m_HwdID, 0, szID, 1, pTypeLighting2, sTypeAC, STYPE_Media, 0, "Unavailable", Name, 12, 255, 1);
 
 	ReloadNodes();
 }
@@ -1287,7 +1287,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_Kodi)
 				return;
-			CKodi *pHardware = reinterpret_cast<CKodi*>(pBaseHardware);
+			CKodi *pHardware = dynamic_cast<CKodi*>(pBaseHardware);
 
 			root["status"] = "OK";
 			root["title"] = "KodiSetMode";
@@ -1320,7 +1320,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_Kodi)
 				return;
-			CKodi *pHardware = reinterpret_cast<CKodi*>(pBaseHardware);
+			CKodi *pHardware = dynamic_cast<CKodi*>(pBaseHardware);
 
 			root["status"] = "OK";
 			root["title"] = "KodiAddNode";
@@ -1348,7 +1348,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_Kodi)
 				return;
-			CKodi *pHardware = reinterpret_cast<CKodi*>(pBaseHardware);
+			CKodi *pHardware = dynamic_cast<CKodi*>(pBaseHardware);
 
 			int NodeID = atoi(nodeid.c_str());
 			root["status"] = "OK";
@@ -1374,7 +1374,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_Kodi)
 				return;
-			CKodi *pHardware = reinterpret_cast<CKodi*>(pBaseHardware);
+			CKodi *pHardware = dynamic_cast<CKodi*>(pBaseHardware);
 
 			int NodeID = atoi(nodeid.c_str());
 			root["status"] = "OK";
@@ -1399,7 +1399,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_Kodi)
 				return;
-			CKodi *pHardware = reinterpret_cast<CKodi*>(pBaseHardware);
+			CKodi *pHardware = dynamic_cast<CKodi*>(pBaseHardware);
 
 			root["status"] = "OK";
 			root["title"] = "KodiClearNodes";

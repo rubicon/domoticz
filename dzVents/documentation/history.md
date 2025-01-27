@@ -1,6 +1,16 @@
 ```{=mediawiki}
 __NOTOC__
 ```
+## [3.1.10] ##
+- Added LOG_STATUS, adds a status log message into the system
+- Added 'Logging' example
+- Log levels are now handled internally as normal levels, meaning for example that error logs will be logged as errors, debug logs will be handles as debug logs (you have to enable debug logs as startup parameter)
+- Removed LOG_MODULE_EXEC_INFO from documentation as it should only be used internally (start/stop script notifications)
+- Removed unused log level 'LOG_WARNING'
+
+## [3.1.9] ##
+- Added historical data helper <code>med(fromIndex, toIndex, default)</code> to calculate the median
+
 ## [3.1.8] ##
 - Add option to deserialize serialized JSON strings
 - Add keyword or in time rules
@@ -536,4 +546,4 @@ astronomical times. (AstronomicalTwilight. NauticalTwilight, CivilTwilight, sunr
 
  - Added domoticz object resource structure. Updated readme accordingly. No more (or hardly any) need for juggling with all the Domoticz Lua tables and commandArrays.
 
-= [Back to dzVents wiki](https://www.domoticz.com/wiki/DzVents:_next_generation_LUA_scripting) =
+= [Back to dzVents wiki](https://wiki.domoticz.com/DzVents:_next_generation_Lua_scripting) =

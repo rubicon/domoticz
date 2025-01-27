@@ -5,7 +5,6 @@
 #include "../main/Logger.h"
 #include "../main/SQLHelper.h"
 #include "../main/RFXtrx.h"
-#include "../main/localtime_r.h"
 #include "../main/Noncopyable.h"
 #include "../main/WebServer.h"
 #include "../main/mainworker.h"
@@ -505,7 +504,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_Pinger)
 				return;
-			CPinger *pHardware = reinterpret_cast<CPinger*>(pBaseHardware);
+			CPinger *pHardware = dynamic_cast<CPinger*>(pBaseHardware);
 
 			root["status"] = "OK";
 			root["title"] = "PingerSetMode";
@@ -543,7 +542,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_Pinger)
 				return;
-			CPinger *pHardware = reinterpret_cast<CPinger*>(pBaseHardware);
+			CPinger *pHardware = dynamic_cast<CPinger*>(pBaseHardware);
 
 			root["status"] = "OK";
 			root["title"] = "PingerAddNode";
@@ -571,7 +570,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_Pinger)
 				return;
-			CPinger *pHardware = reinterpret_cast<CPinger*>(pBaseHardware);
+			CPinger *pHardware = dynamic_cast<CPinger*>(pBaseHardware);
 
 			int NodeID = atoi(nodeid.c_str());
 			root["status"] = "OK";
@@ -597,7 +596,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_Pinger)
 				return;
-			CPinger *pHardware = reinterpret_cast<CPinger*>(pBaseHardware);
+			CPinger *pHardware = dynamic_cast<CPinger*>(pBaseHardware);
 
 			int NodeID = atoi(nodeid.c_str());
 			root["status"] = "OK";
@@ -622,7 +621,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_Pinger)
 				return;
-			CPinger *pHardware = reinterpret_cast<CPinger*>(pBaseHardware);
+			CPinger *pHardware = dynamic_cast<CPinger*>(pBaseHardware);
 
 			root["status"] = "OK";
 			root["title"] = "PingerClearNodes";

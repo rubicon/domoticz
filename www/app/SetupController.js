@@ -1,15 +1,8 @@
 define(['app'], function (app) {
 	app.controller('SetupController', ['$scope', '$rootScope', '$window', '$location', '$http', '$interval', 'md5', function ($scope, $rootScope, $window, $location, $http, $interval, md5) {
-		googleMapsCallback = function () {
-			$("#dialog-findlatlong").dialog("open");
-		};
-
+		
 		$scope.GetGeoLocation = function () {
-			$.ajax({
-				url: "https://maps.googleapis.com/maps/api/js?v=3&callback=googleMapsCallback&sensor=false",
-				dataType: "script",
-				cache: true
-			});
+			$("#dialog-findlatlong").dialog("open");
 		}
 
 		$scope.AllowNewHardware = function (minutes) {
@@ -245,6 +238,23 @@ define(['app'], function (app) {
 				}
 			});
 
+			//Get Languages
+			$.ajax({
+				url: "json.htm?type=command&param=getlanguages",
+				async: false,
+				dataType: 'json',
+				success: function (data) {
+					if (typeof data.result != 'undefined') {
+						$("#settingscontent #combolanguages").html("");
+						$.each(data.result, function (language, langcode) {
+							var option = $('<option />');
+							option.attr('value', langcode).text(language);
+							$("#settingscontent #combolanguages").append(option);
+						});
+					}
+				}
+			});
+
 			//Get Timer Plans
 			$.ajax({
 				url: "json.htm?type=command&param=gettimerplans",
@@ -261,9 +271,161 @@ define(['app'], function (app) {
 					}
 				}
 			});
-
+			
+			//Get Dynamic Price devices
 			$.ajax({
-				url: "json.htm?type=settings",
+				url: "json.htm?type=command&param=getdynamicpricedevices",
+				async: false,
+				dataType: 'json',
+				success: function (data) {
+					if (typeof data.result != 'undefined') {
+						var $comboEP = $("#comboDPElectricity");
+						var $comboEG = $("#comboDPGas");
+						$.each(data.result, function (i, item) {
+							$comboEP.append($("<option />").val(item.idx).text(item.Name));
+							$comboEG.append($("<option />").val(item.idx).text(item.Name));
+						});
+					}
+				}
+			});
+			
+			//Populate Energy Dashboard Devices
+			$.ajax({
+				url: "json.htm?displaydisabled=0&displayhidden=0&filter=all&param=getdevices&type=command&used=true&order=Name",
+				async: false,
+				dataType: 'json',
+				success: function (data) {
+					if (typeof data.result != 'undefined') {
+						
+						let listP1 = [];
+						let listGas = [];
+						let listWater = [];
+						let listSolar = [];
+						let listBatteryWatt = [];
+						let listBatterySoc = [];
+						let listText = [];
+						let listExtra = [];
+						
+						let $comboEP1 = $("#comboEP1");
+						let $comboEGas = $("#comboEGas");
+						let $comboEWater = $("#comboEWater");
+
+						let $comboESolar = $("#comboESolar");
+
+						let $comboEBatteryWatt = $("#comboEBatteryWatt");
+						let $comboEBatterySoc = $("#comboEBatterySoc");
+
+						let $comboEText = $("#comboETextSensor");
+						let $comboEExtra1 = $("#comboEExtra1");
+						let $comboEExtra2 = $("#comboEExtra2");
+						let $comboEExtra3 = $("#comboEExtra3");
+						
+						$.each(data.result, function (i, item) {
+							if (item.Type != "Group") {
+								if (item.hasOwnProperty("SwitchTypeVal")) {
+									SwitchTypeVal = parseInt(item["SwitchTypeVal"]);
+								}
+
+								if ((item.Type == "P1 Smart Meter")&&(item.SubType == "Energy")) {
+									listP1.push({"idx": item.idx, "name": " " + item.Name});
+								}
+								else if ((item.Type == "P1 Smart Meter")&&(item.SubType == "Gas")) {
+									listGas.push({"idx": item.idx, "name": item.Name});
+								}
+								else if (item.Type == "RFXMeter") {
+									if (SwitchTypeVal == 1) {
+										listGas.push({"idx": item.idx, "name": item.Name});
+									}
+									else if (SwitchTypeVal == 2) {
+										listWater.push({"idx": item.idx, "name": item.Name});
+									}
+									else {
+										listExtra.push({"idx": item.idx, "name": item.Name});
+									}
+								}
+								else if (item.Type == "Setpoint") {
+									listBatteryWatt.push({"idx": item.idx, "name": item.Name});
+									listExtra.push({"idx": item.idx, "name": item.Name});
+								}
+								else if (item.Type == "General") {
+									if (item.SubType == "Counter Incremental") {
+										if (SwitchTypeVal == 1) {
+											listGas.push({"idx": item.idx, "name": item.Name});
+										}
+										else if (SwitchTypeVal == 2) {
+											listWater.push({"idx": item.idx, "name": item.Name});
+										}
+										else {
+											listExtra.push({"idx": item.idx, "name": item.Name});
+										}
+									}
+									else if (item.SubType == "Percentage") {
+										listBatterySoc.push({"idx": item.idx, "name": item.Name});
+										listExtra.push({"idx": item.idx, "name": item.Name});
+									}
+									else if (item.SubType == "Text") {
+										listText.push({"idx": item.idx, "name": item.Name});
+										listExtra.push({"idx": item.idx, "name": item.Name});
+									}
+									else if (item.SubType == "kWh") {
+										listP1.push({"idx": item.idx, "name": item.Name});
+										listSolar.push({"idx": item.idx, "name": item.Name});
+										listBatteryWatt.push({"idx": item.idx, "name": item.Name});
+										listExtra.push({"idx": item.idx, "name": item.Name});
+									} else {
+										listExtra.push({"idx": item.idx, "name": item.Name});
+									}
+								}
+								else if ((item.Type == "Usage")&&(item.SubType == "Electric")) {
+									listSolar.push({"idx": item.idx, "name": item.Name});
+									listBatteryWatt.push({"idx": item.idx, "name": item.Name});
+									listExtra.push({"idx": item.idx, "name": item.Name});
+								} else {
+									listExtra.push({"idx": item.idx, "name": item.Name});
+								}
+							}
+						});
+						listP1.sort((a,b) => (a.name.toLowerCase() > b.name.toLowerCase()) ? 1 : ((b.name.toLowerCase() > a.name.toLowerCase()) ? -1 : 0));
+						listGas.sort((a,b) => (a.name.toLowerCase() > b.name.toLowerCase()) ? 1 : ((b.name.toLowerCase() > a.name.toLowerCase()) ? -1 : 0));
+						listWater.sort((a,b) => (a.name.toLowerCase() > b.name.toLowerCase()) ? 1 : ((b.name.toLowerCase() > a.name.toLowerCase()) ? -1 : 0));
+						listSolar.sort((a,b) => (a.name.toLowerCase() > b.name.toLowerCase()) ? 1 : ((b.name.toLowerCase() > a.name.toLowerCase()) ? -1 : 0));
+						listBatteryWatt.sort((a,b) => (a.name.toLowerCase() > b.name.toLowerCase()) ? 1 : ((b.name.toLowerCase() > a.name.toLowerCase()) ? -1 : 0));
+						listBatterySoc.sort((a,b) => (a.name.toLowerCase() > b.name.toLowerCase()) ? 1 : ((b.name.toLowerCase() > a.name.toLowerCase()) ? -1 : 0));
+						listText.sort((a,b) => (a.name.toLowerCase() > b.name.toLowerCase()) ? 1 : ((b.name.toLowerCase() > a.name.toLowerCase()) ? -1 : 0));
+						listExtra.sort((a,b) => (a.name.toLowerCase() > b.name.toLowerCase()) ? 1 : ((b.name.toLowerCase() > a.name.toLowerCase()) ? -1 : 0));
+
+						$.each(listP1, function (i, item) {
+							$comboEP1.append($("<option />").val(item.idx).text(item.name));
+						});
+						$.each(listGas, function (i, item) {
+							$comboEGas.append($("<option />").val(item.idx).text(item.name));
+						});
+						$.each(listWater, function (i, item) {
+							$comboEWater.append($("<option />").val(item.idx).text(item.name));
+						});
+						$.each(listSolar, function (i, item) {
+							$comboESolar.append($("<option />").val(item.idx).text(item.name));
+						});
+						$.each(listBatteryWatt, function (i, item) {
+							$comboEBatteryWatt.append($("<option />").val(item.idx).text(item.name));
+						});
+						$.each(listBatterySoc, function (i, item) {
+							$comboEBatterySoc.append($("<option />").val(item.idx).text(item.name));
+						});
+						$.each(listText, function (i, item) {
+							$comboEText.append($("<option />").val(item.idx).text(item.name));
+						});
+						$.each(listExtra, function (i, item) {
+							$comboEExtra1.append($("<option />").val(item.idx).text(item.name));
+							$comboEExtra2.append($("<option />").val(item.idx).text(item.name));
+							$comboEExtra3.append($("<option />").val(item.idx).text(item.name));
+						});
+					}
+				}
+			});
+			
+			$.ajax({
+				url: "json.htm?type=command&param=getsettings",
 				async: false,
 				dataType: 'json',
 				success: function (data) {
@@ -271,6 +433,7 @@ define(['app'], function (app) {
 						$("#locationtable #Latitude").val(data.Location.Latitude);
 						$("#locationtable #Longitude").val(data.Location.Longitude);
 					}
+					$("#locationtable #CurrencySymbol").val(data.Currency);
 					if (typeof data.ProwlEnabled != 'undefined') {
 						$("#prowltable #ProwlEnabled").prop('checked', data.ProwlEnabled == 1);
 					}
@@ -283,15 +446,15 @@ define(['app'], function (app) {
 					if (typeof data.PushbulletAPI != 'undefined') {
 						$("#pushbullettable #PushbulletAPI").val(data.PushbulletAPI);
 					}
-                                        if (typeof data.TelegramEnabled != 'undefined') {
-                                                $("#telegramtable #TelegramEnabled").prop('checked', data.TelegramEnabled == 1);
-                                        }
-                                        if (typeof data.TelegramAPI != 'undefined') {
-                                                $("#telegramtable #TelegramAPI").val(data.TelegramAPI);
-                                        }
-                                        if (typeof data.TelegramChat != 'undefined') {
-                                                $("#telegramtable #TelegramChat").val(data.TelegramChat);
-                                        }
+					if (typeof data.TelegramEnabled != 'undefined') {
+							$("#telegramtable #TelegramEnabled").prop('checked', data.TelegramEnabled == 1);
+					}
+					if (typeof data.TelegramAPI != 'undefined') {
+							$("#telegramtable #TelegramAPI").val(data.TelegramAPI);
+					}
+					if (typeof data.TelegramChat != 'undefined') {
+							$("#telegramtable #TelegramChat").val(data.TelegramChat);
+					}
 					if (typeof data.PushsaferEnabled != 'undefined') {
 						$("#pushsafertable #PushsaferEnabled").prop('checked', data.PushsaferEnabled == 1);
 					}
@@ -395,6 +558,9 @@ define(['app'], function (app) {
 					if (typeof data.ShortLogDays != 'undefined') {
 						$("#shortlogtable #comboshortlogdays").val(data.ShortLogDays);
 					}
+					if (typeof data.ShortLogAddOnlyNewValues != 'undefined') {
+						$("#shortlogtable #ShortLogAddOnlyNewValues").prop('checked', data.ShortLogAddOnlyNewValues == 1);
+					}
 					if (typeof data.ShortLogInterval != 'undefined') {
 						$("#shortlogtable #comboshortloginterval").val(data.ShortLogInterval);
 					}
@@ -407,11 +573,6 @@ define(['app'], function (app) {
 					if (typeof data.MobileType != 'undefined') {
 						$("#settingscontent #combosmobiletype").val(data.MobileType);
 					}
-					if (typeof data.WebUserName != 'undefined') {
-						$scope.OldAdminUser=data.WebUserName;
-						$("#webtable #WebUserName").val(data.WebUserName);
-					}
-					$("#webtable #WebPassword").val(md5.createHash("bogus"));
 					if (typeof data.SecPassword != 'undefined') {
 						$("#sectable #SecPassword").val(data.SecPassword);
 					}
@@ -517,30 +678,6 @@ define(['app'], function (app) {
 					if (typeof data.DoorbellCommand != 'undefined') {
 						$("#doorbelltable #comboDoorbellCommand").val(data.DoorbellCommand);
 					}
-					if (typeof data.SmartMeterType != 'undefined') {
-						$("#p1metertable #comboP1MeterType").val(data.SmartMeterType);
-					}
-					if (typeof data.EnableTabFloorplans != 'undefined') {
-						$("#activemenustable #EnableTabFloorplans").prop('checked', data.EnableTabFloorplans == 1);
-					}
-					if (typeof data.EnableTabLights != 'undefined') {
-						$("#activemenustable #EnableTabLights").prop('checked', data.EnableTabLights == 1);
-					}
-					if (typeof data.EnableTabScenes != 'undefined') {
-						$("#activemenustable #EnableTabScenes").prop('checked', data.EnableTabScenes == 1);
-					}
-					if (typeof data.EnableTabTemp != 'undefined') {
-						$("#activemenustable #EnableTabTemp").prop('checked', data.EnableTabTemp == 1);
-					}
-					if (typeof data.EnableTabWeather != 'undefined') {
-						$("#activemenustable #EnableTabWeather").prop('checked', data.EnableTabWeather == 1);
-					}
-					if (typeof data.EnableTabUtility != 'undefined') {
-						$("#activemenustable #EnableTabUtility").prop('checked', data.EnableTabUtility == 1);
-					}
-					if (typeof data.EnableTabCustom != 'undefined') {
-						$("#activemenustable #EnableTabCustom").prop('checked', data.EnableTabCustom == 1);
-					}
 					if (typeof data.NotificationSensorInterval != 'undefined') {
 						$("#nitable #comboNotificationSensorInterval").val(data.NotificationSensorInterval);
 					}
@@ -551,7 +688,7 @@ define(['app'], function (app) {
 						$("#remotesharedtable #RemoteSharedPort").val(data.RemoteSharedPort);
 					}
 					if (typeof data.Language != 'undefined') {
-						$("#languagetable #combolanguage").val(data.Language);
+						$("#languagetable #combolanguages").val(data.Language);
 					}
 					if (typeof data.WebTheme != 'undefined') {
 						$("#settingscontent #combothemes").val(data.WebTheme);
@@ -565,8 +702,8 @@ define(['app'], function (app) {
 					document.title = sessionStorage.title;
 					$("#settingscontent #Title").val(sessionStorage.title);
 
-					if (typeof data.AuthenticationMethod != 'undefined') {
-						$("#webtable #comboauthmethod").val(data.AuthenticationMethod);
+					if (typeof data.AllowPlainBasicAuth != 'undefined') {
+						$("#webtable #AllowPlainBasicAuth").prop('checked', data.AllowPlainBasicAuth == 1);
 					}
 					if (typeof data.ReleaseChannel != 'undefined') {
 						$("#autoupdatetable #comboReleaseChannel").val(data.ReleaseChannel);
@@ -661,8 +798,43 @@ define(['app'], function (app) {
 					if (typeof data.IFTTTAPI != 'undefined') {
 						$("#ifttttable #IFTTTAPI").val(atob(data.IFTTTAPI));
 					}
-					if (typeof data.WebRemoteProxyIPs != 'undefined') {
-						$("#webproxytable #WebRemoteProxyIPs").val(data.WebRemoteProxyIPs);
+
+					if (typeof data.HourIdxElectricityDevice != 'undefined') {
+						$("#dpricetable #comboDPElectricity").val(data.HourIdxElectricityDevice);
+					}
+					if (typeof data.HourIdxGasDevice != 'undefined') {
+						$("#dpricetable #comboDPGas").val(data.HourIdxGasDevice);
+					}
+					if (typeof data.P1DisplayType != 'undefined') {
+						$("#dpricetable #comboP1DisplayType").val(data.P1DisplayType);
+					}					
+
+					if (typeof data.ESettings != 'undefined') {
+						$("#comboEP1").val(data.ESettings.idP1);
+						$("#comboEGas").val(data.ESettings.idGas);
+						$("#comboEWater").val(data.ESettings.idWater);
+						$("#comboESolar").val(data.ESettings.idSolar);
+						$("#comboEBatteryWatt").val(data.ESettings.idBatteryWatt);
+						$("#comboEBatterySoc").val(data.ESettings.idBatterySoc);
+						$("#comboETextSensor").val(data.ESettings.idTextSensor);
+						$("#comboEExtra1").val(data.ESettings.idExtra1);
+						$("#comboEExtra2").val(data.ESettings.idExtra2);
+						$("#comboEExtra3").val(data.ESettings.idExtra3);
+						$("#comboEExtra1Field").val(data.ESettings.Extra1Field);
+						$("#comboEExtra2Field").val(data.ESettings.Extra2Field);
+						$("#comboEExtra3Field").val(data.ESettings.Extra3Field);
+						$("#comboEExtra1Icon").val(data.ESettings.Extra1Icon);
+						$("#comboEExtra2Icon").val(data.ESettings.Extra2Icon);
+						$("#comboEExtra3Icon").val(data.ESettings.Extra3Icon);
+
+						$("#EConvertWaterM3ToLiter").prop('checked', data.ESettings.ConvertWaterM3ToLiter == 1);
+						$("#EDisplayTime").prop('checked', data.ESettings.DisplayTime == 1);
+						if (typeof data.ESettings.DisplayFlowWithLines != 'undefined') {
+							$("#EDisplayFlowWithLines").prop('checked', data.ESettings.DisplayFlowWithLines == 1);
+						}
+						if (typeof data.ESettings.UseCustomIcons != 'undefined') {
+							$("#EUseCustomIcons").prop('checked', data.ESettings.UseCustomIcons == 1);
+						}
 					}
 				}
 			});
@@ -679,23 +851,6 @@ define(['app'], function (app) {
 				return;
 			}
 			
-			var adminuser = $("#webtable #WebUserName").val();
-			var adminpwd = $("#webtable #WebPassword").val();
-			if (adminpwd == md5.createHash("bogus")) {
-				$("#webtable #WebPassword").val("");
-				adminpwd = "";
-			}
-			if ((adminuser!="")&&($scope.OldAdminUser!=adminuser)) {
-				if (adminpwd=="") {
-					ShowNotify($.t('Please enter a Admin password!'), 2000, true);
-					return;
-				}
-			}
-			if (adminpwd!="") {
-				$("#webtable #WebPassword").val(md5.createHash(adminpwd));
-			}
-						
-
 			var secpanel = $("#sectable #SecPassword").val();
 			var switchprotection = $("#protectiontable #ProtectionPassword").val();
 
@@ -823,23 +978,21 @@ define(['app'], function (app) {
 							bootbox.alert($.t('Please enter a Address to search for!...'), 3500, true);
 							return false;
 						}
-						var url = "https://www.mapquestapi.com/geocoding/v1/address?key=XN5Eyt9GjLaRPG6T2if7VtUueRLckR8b&inFormat=kvp&outFormat=json&thumbMaps=false&location=" + address;
+						let url = "https://nominatim.openstreetmap.org/search?q="+encodeURIComponent(address)+"&format=json&addressdetails=1";
 						$http({
 							url: url,
 							async: true,
 							dataType: 'json'
 						}).then(function successCallback(response) {
 							var data = response.data;
-							var bIsOK = false;
-							if(data.hasOwnProperty('results')) {
-								if (data['results'][0]['locations'].length > 0) {
-									$('#dialog-findlatlong #latitude').val(data['results'][0]['locations'][0]['displayLatLng']['lat']);
-									$('#dialog-findlatlong #longitude').val(data['results'][0]['locations'][0]['displayLatLng']['lng']);//.toFixed(6)
-									bIsOK = true;
-								}
-							} 
-							if (!bIsOk) {
-								bootbox.alert($.t('Geocode was not successful for the following reason') + ': Invalid/No data returned!');
+
+							if (data.length > 0) {
+								const location = data[0];
+								const lat = location.lat;
+								const lon = location.lon;
+								//console.log(`Latitude: ${lat}, Longitude: ${lon}`);
+								$('#dialog-findlatlong #latitude').val(lat);
+								$('#dialog-findlatlong #longitude').val(lon);//.toFixed(6)
 							}
 						}, function errorCallback(response) {
 							bootbox.alert($.t('Geocode was not successful for the following reason') + ': ' + response.statusText);

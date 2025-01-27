@@ -5,9 +5,8 @@ Author : Blaise Thauvin
 Version : 1.5
 Description : This class is used by various Teleinfo hardware decoders to process and display data
 		  It is currently used by EcoDevices, TeleinfoSerial
-		  Detailed information on the Teleinfo protocol can be found at (version 5, 16/03/2015)
-		  http://www.enedis.fr/sites/default/files/Enedis-NOI-CPT_02E.pdf
-		  Detailed information for Linky: https://www.enedis.fr/media/2035/download
+		  Detailed information on the Teleinfo protocol (Enedis-NOI-CPT_54E) can be found at (version 3, 01/06/2018)
+		  https://www.enedis.fr/media/2035/download
 
 History :
 0.1 2017-03-03 : Creation
@@ -85,6 +84,7 @@ class CTeleinfoBase : public CDomoticzHardwareBase
 		bool triphase;
 		bool withPAPP; // For meters with no PAPP
 		int CRCmode1;  // really a bool, but with a special "un-initialized state"
+		bool waitingFirstBlock;
 		_tTeleinfo()
 		{
 			ISOUSC = 0;
@@ -131,6 +131,7 @@ class CTeleinfoBase : public CDomoticzHardwareBase
 			triphase = false;
 			withPAPP = false;
 			CRCmode1 = 255; // means "bool not initialized yet", will be when running CRC Check for the first time
+			waitingFirstBlock = true;
 		}
 	} Teleinfo;
 	void ProcessTeleinfo(Teleinfo &teleinfo);
@@ -149,11 +150,10 @@ class CTeleinfoBase : public CDomoticzHardwareBase
 
       private:
 	int AlertLevel(int Iinst, int Isousc, int Sinsts, int Pcoup, char* text);
-	P1Power m_p1power, m_p2power, m_p3power, m_pInjectpower;
+	P1Power m_p1power, m_p2power, m_p3power;
 	Teleinfo m_teleinfo;
 	char m_buffer[1024];
 	int m_bufferpos;
-	unsigned int m_counter;
 };
 
 /*  Details on Teleinfo variables

@@ -5,17 +5,6 @@ define(['app', 'lodash', 'log/Chart', 'log/CounterLogParams', 'log/CounterLogCou
             chartParamsDayTemplate: {
 
             },
-            chartParamsWeekTemplate: {
-                highchartTemplate: {
-                    plotOptions: {
-                        column: {
-                            dataLabels: {
-                                enabled: true
-                            }
-                        }
-                    }
-                }
-            },
             chartParamsMonthYearTemplate: {
 
             },
@@ -27,15 +16,6 @@ define(['app', 'lodash', 'log/Chart', 'log/CounterLogParams', 'log/CounterLogCou
                     {
                         title: {
                             text: $.t('Energy') + ' (' + chart.valueUnits.energy(chart.valueMultipliers.m1) + ')'
-                        }
-                    }
-                ];
-            },
-            yAxesWeek: function (deviceTypeIndex) {
-                return [
-                    {
-                        title: {
-                            text: $.t('Energy') + ' (' + chart.valueUnits.energy(chart.valueMultipliers.m1000) + ')'
                         }
                     }
                 ];
@@ -60,11 +40,7 @@ define(['app', 'lodash', 'log/Chart', 'log/CounterLogParams', 'log/CounterLogCou
             },
             daySeriesSuppliers: function (deviceTypeIndex) {
                 return []
-                    .concat(counterLogCounterSeriesSuppliers.counterSeriesSuppliers(deviceTypeIndex, chart.valueMultipliers.m1, undefined, 0));
-            },
-            weekSeriesSuppliers: function (deviceTypeIndex) {
-                return []
-                    .concat(counterLogCounterSeriesSuppliers.counterSeriesSuppliers(deviceTypeIndex, chart.valueMultipliers.m1000));
+                    .concat(counterLogCounterSeriesSuppliers.counterSeriesDaySuppliers(deviceTypeIndex, chart.valueMultipliers.m1, undefined));
             },
             monthYearSeriesSuppliers: function (deviceTypeIndex) {
                 return []
@@ -84,17 +60,6 @@ define(['app', 'lodash', 'log/Chart', 'log/CounterLogParams', 'log/CounterLogCou
             chartParamsDayTemplate: {
 
             },
-            chartParamsWeekTemplate: {
-                highchartTemplate: {
-                    plotOptions: {
-                        column: {
-                            dataLabels: {
-                                enabled: true
-                            }
-                        }
-                    }
-                }
-            },
             chartParamsMonthYearTemplate: {
 
             },
@@ -110,21 +75,20 @@ define(['app', 'lodash', 'log/Chart', 'log/CounterLogParams', 'log/CounterLogCou
                     }
                 ];
             },
-            yAxesWeek: function (deviceTypeIndex) {
-                return [
-                    {
-                        title: {
-                            text: $.t('Gas') + ' (' + chart.valueUnits.gas(chart.valueMultipliers.m1) + ')'
-                        }
-                    }
-                ];
-            },
             yAxesMonthYear: function (deviceTypeIndex) {
                 return [
                     {
                         title: {
                             text: $.t('Gas') + ' (' + chart.valueUnits.gas(chart.valueMultipliers.m1) + ')'
                         }
+                    },
+                    {
+                        title: {
+                            text: $.t('Price') + ' (' + $.myglobals.currencysign + ')'
+                        },
+						visible: true,
+						showEmpty: false,
+						opposite: true
                     }
                 ];
             },
@@ -139,17 +103,14 @@ define(['app', 'lodash', 'log/Chart', 'log/CounterLogParams', 'log/CounterLogCou
             },
             daySeriesSuppliers: function (deviceTypeIndex) {
                 return []
-                    .concat(counterLogCounterSeriesSuppliers.counterSeriesSuppliers(deviceTypeIndex, chart.valueMultipliers.m1));
-            },
-            weekSeriesSuppliers: function (deviceTypeIndex) {
-                return []
-                    .concat(counterLogCounterSeriesSuppliers.counterSeriesSuppliers(deviceTypeIndex, chart.valueMultipliers.m1));
+                    .concat(counterLogCounterSeriesSuppliers.counterSeriesDaySuppliers(deviceTypeIndex, chart.valueMultipliers.m1));
             },
             monthYearSeriesSuppliers: function (deviceTypeIndex) {
                 return []
                     .concat(counterLogCounterSeriesSuppliers.counterSeriesSuppliers(deviceTypeIndex, chart.valueMultipliers.m1))
                     .concat(counterLogCounterSeriesSuppliers.counterTrendlineSeriesSuppliers(deviceTypeIndex, chart.valueMultipliers.m1))
-                    .concat(counterLogCounterSeriesSuppliers.counterPreviousSeriesSupplier(deviceTypeIndex, chart.valueMultipliers.m1));
+                    .concat(counterLogCounterSeriesSuppliers.counterPreviousSeriesSupplier(deviceTypeIndex, chart.valueMultipliers.m1))
+					.concat(counterLogCounterSeriesSuppliers.counterPriceSeriesSuppliers());
             },
             extendDataRequestCompare: function (dataRequest) {
                 return dataRequest;
@@ -162,17 +123,6 @@ define(['app', 'lodash', 'log/Chart', 'log/CounterLogParams', 'log/CounterLogCou
         counterLogSubtypeRegistry.register('water', {
             chartParamsDayTemplate: {
 
-            },
-            chartParamsWeekTemplate: {
-                highchartTemplate: {
-                    plotOptions: {
-                        column: {
-                            dataLabels: {
-                                enabled: true
-                            }
-                        }
-                    }
-                }
             },
             chartParamsMonthYearTemplate: {
 
@@ -189,21 +139,20 @@ define(['app', 'lodash', 'log/Chart', 'log/CounterLogParams', 'log/CounterLogCou
                     }
                 ];
             },
-            yAxesWeek: function (deviceTypeIndex) {
-                return [
-                    {
-                        title: {
-                            text: $.t('Water') + ' (' + chart.valueUnits.water(chart.valueMultipliers.m1) + ')'
-                        }
-                    }
-                ];
-            },
             yAxesMonthYear: function (deviceTypeIndex) {
                 return [
                     {
                         title: {
                             text: $.t('Water') + ' (' + chart.valueUnits.water(chart.valueMultipliers.m1) + ')'
                         }
+                    },
+                    {
+                        title: {
+                            text: $.t('Price') + ' (' + $.myglobals.currencysign + ')'
+                        },
+						visible: true,
+						showEmpty: false,
+						opposite: true
                     }
                 ];
             },
@@ -218,17 +167,14 @@ define(['app', 'lodash', 'log/Chart', 'log/CounterLogParams', 'log/CounterLogCou
             },
             daySeriesSuppliers: function (deviceTypeIndex) {
                 return []
-                    .concat(counterLogCounterSeriesSuppliers.counterSeriesSuppliers(deviceTypeIndex, chart.valueMultipliers.m1, times1000, 0));
-            },
-            weekSeriesSuppliers: function (deviceTypeIndex) {
-                return []
-                    .concat(counterLogCounterSeriesSuppliers.counterSeriesSuppliers(deviceTypeIndex, chart.valueMultipliers.m1, times1000, 0));
+                    .concat(counterLogCounterSeriesSuppliers.counterSeriesDaySuppliers(deviceTypeIndex, chart.valueMultipliers.m1, times1000, 0));
             },
             monthYearSeriesSuppliers: function (deviceTypeIndex) {
                 return []
                     .concat(counterLogCounterSeriesSuppliers.counterSeriesSuppliers(deviceTypeIndex, chart.valueMultipliers.m1, times1000, 0))
                     .concat(counterLogCounterSeriesSuppliers.counterTrendlineSeriesSuppliers(deviceTypeIndex, chart.valueMultipliers.m1, times1000, 0))
-                    .concat(counterLogCounterSeriesSuppliers.counterPreviousSeriesSupplier(deviceTypeIndex, chart.valueMultipliers.m1, times1000, 0));
+                    .concat(counterLogCounterSeriesSuppliers.counterPreviousSeriesSupplier(deviceTypeIndex, chart.valueMultipliers.m1, times1000, 0))
+					.concat(counterLogCounterSeriesSuppliers.counterPriceSeriesSuppliers());
             },
             extendDataRequestCompare: function (dataRequest) {
                 return dataRequest;
@@ -242,25 +188,11 @@ define(['app', 'lodash', 'log/Chart', 'log/CounterLogParams', 'log/CounterLogCou
             preprocessDayData: function (data) {
                 preprocessData.call(this, data);
             },
-            preprocessWeekData: function (data) {
-                preprocessData.call(this, data);
-            },
             preprocessMonthYearData: function (data) {
                 preprocessData.call(this, data);
             },
             chartParamsDayTemplate: {
 
-            },
-            chartParamsWeekTemplate: {
-                highchartTemplate: {
-                    plotOptions: {
-                        column: {
-                            dataLabels: {
-                                enabled: true
-                            }
-                        }
-                    }
-                }
             },
             chartParamsMonthYearTemplate: {
 
@@ -277,15 +209,6 @@ define(['app', 'lodash', 'log/Chart', 'log/CounterLogParams', 'log/CounterLogCou
                     }
                 ];
             },
-            yAxesWeek: function (deviceTypeIndex) {
-                return [
-                    {
-                        title: {
-                            text: $.t('Count')
-                        }
-                    }
-                ];
-            },
             yAxesMonthYear: function (deviceTypeIndex) {
                 return [
                     {
@@ -304,19 +227,15 @@ define(['app', 'lodash', 'log/Chart', 'log/CounterLogParams', 'log/CounterLogCou
                     }
                 ];
             },
-            daySeriesSuppliers: function (deviceTypeIndex) {
+            daySeriesSuppliers: function (deviceTypeIndex, divider) {
                 return []
-                    .concat(counterLogCounterSeriesSuppliers.counterSeriesSuppliers(deviceTypeIndex, chart.valueMultipliers.m1, undefined, undefined));
+                    .concat(counterLogCounterSeriesSuppliers.counterSeriesDaySuppliers(deviceTypeIndex, chart.valueMultipliers.m1, undefined, decimalPlacesDiv1(divider)));
             },
-            weekSeriesSuppliers: function (deviceTypeIndex) {
+            monthYearSeriesSuppliers: function (deviceTypeIndex, divider) {
                 return []
-                    .concat(counterLogCounterSeriesSuppliers.counterSeriesSuppliers(deviceTypeIndex, chart.valueMultipliers.m1, undefined, undefined));
-            },
-            monthYearSeriesSuppliers: function (deviceTypeIndex) {
-                return []
-                    .concat(counterLogCounterSeriesSuppliers.counterSeriesSuppliers(deviceTypeIndex, chart.valueMultipliers.m1, undefined, undefined))
-                    .concat(counterLogCounterSeriesSuppliers.counterTrendlineSeriesSuppliers(deviceTypeIndex, chart.valueMultipliers.m1, undefined, undefined))
-                    .concat(counterLogCounterSeriesSuppliers.counterPreviousSeriesSupplier(deviceTypeIndex, chart.valueMultipliers.m1, undefined, undefined));
+                    .concat(counterLogCounterSeriesSuppliers.counterSeriesSuppliers(deviceTypeIndex, chart.valueMultipliers.m1, undefined, decimalPlacesDiv1(divider)))
+                    .concat(counterLogCounterSeriesSuppliers.counterTrendlineSeriesSuppliers(deviceTypeIndex, chart.valueMultipliers.m1, undefined, decimalPlacesDiv1(divider)))
+                    .concat(counterLogCounterSeriesSuppliers.counterPreviousSeriesSupplier(deviceTypeIndex, chart.valueMultipliers.m1, undefined, decimalPlacesDiv1(divider)));
             },
             extendDataRequestCompare: function (dataRequest) {
                 return dataRequest;
@@ -329,17 +248,6 @@ define(['app', 'lodash', 'log/Chart', 'log/CounterLogParams', 'log/CounterLogCou
         counterLogSubtypeRegistry.register('energy-generated', {
             chartParamsDayTemplate: {
 
-            },
-            chartParamsWeekTemplate: {
-                highchartTemplate: {
-                    plotOptions: {
-                        column: {
-                            dataLabels: {
-                                enabled: true
-                            }
-                        }
-                    }
-                }
             },
             chartParamsMonthYearTemplate: {
 
@@ -356,15 +264,6 @@ define(['app', 'lodash', 'log/Chart', 'log/CounterLogParams', 'log/CounterLogCou
                     }
                 ];
             },
-            yAxesWeek: function (deviceTypeIndex) {
-                return [
-                    {
-                        title: {
-                            text: $.t('Energy') + ' (' + chart.valueUnits.energy(chart.valueMultipliers.m1000) + ')'
-                        }
-                    }
-                ];
-            },
             yAxesMonthYear: function (deviceTypeIndex) {
                 return [
                     {
@@ -385,11 +284,7 @@ define(['app', 'lodash', 'log/Chart', 'log/CounterLogParams', 'log/CounterLogCou
             },
             daySeriesSuppliers: function (deviceTypeIndex) {
                 return []
-                    .concat(counterLogCounterSeriesSuppliers.counterSeriesSuppliers(deviceTypeIndex, chart.valueMultipliers.m1, undefined, 0));
-            },
-            weekSeriesSuppliers: function (deviceTypeIndex) {
-                return []
-                    .concat(counterLogCounterSeriesSuppliers.counterSeriesSuppliers(deviceTypeIndex, chart.valueMultipliers.m1000));
+                    .concat(counterLogCounterSeriesSuppliers.counterSeriesDaySuppliers(deviceTypeIndex, chart.valueMultipliers.m1, undefined, chart.valueMultipliers.m1000));
             },
             monthYearSeriesSuppliers: function (deviceTypeIndex) {
                 return []
@@ -410,6 +305,7 @@ define(['app', 'lodash', 'log/Chart', 'log/CounterLogParams', 'log/CounterLogCou
         };
 
         function preprocessData(data) {
+            this.Divider = data.Divider ? data.Divider : 1;
             this.deviceCounterName = data.ValueQuantity ? data.ValueQuantity : undefined;
             this.deviceValueUnit = data.ValueUnits ? data.ValueUnits : undefined;
         }

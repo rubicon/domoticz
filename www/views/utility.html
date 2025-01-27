@@ -23,6 +23,35 @@
 		</table>
 	</form>
 </div>
+<div id="dialog-edittextdevice" title="Edit Device">
+	<form>
+		<table class="display" id="metertable" border="0" cellpadding="0" cellspacing="0">
+		<tr>
+			<td align="right" style="width:120px"><label>Idx: </label></td>
+			<td><span id="deviceidx"></span></td>
+		</tr>
+		<tr>
+			<td align="right"><label for="devicename"><span data-i18n="Name">Name</span>: </label></td>
+			<td><input type="text" id="devicename" style="width: 250px; padding: .4em;" class="text ui-widget-content ui-corner-all"></td>
+		</tr>
+		<tr>
+			<td align="right"><label for="combosensoricon"><span data-i18n="Sensor Icon"></span>: </label></td>
+			<td>
+			<select id="combosensoricon" style="width:200px" class="combobox ui-corner-all">
+			</select>
+			</td>
+		</tr>
+		<tr>
+			<td align="right" style="vertical-align:top"><label for="devicetext"><span data-i18n="Text"></span>: </label></td>
+			<td><textarea id="devicetext" name="devicetext" rows="4" style="width: 356px; padding: .2em;" class="text ui-widget-content ui-corner-all"></textarea></td>
+		</tr>
+		<tr>
+			<td align="right"><label for="devicedescription"><span data-i18n="Description"></span>: </label></td>
+			<td><textarea id="devicedescription" name="devicedescription" rows="4" style="width: 356px; padding: .2em;" class="text ui-widget-content ui-corner-all"></textarea></td>
+		</tr>
+		</table>
+	</form>
+</div>
 <div id="dialog-editcustomsensordevice" title="Edit Device">
 	<form>
 		<table class="display" id="metertable" border="0" cellpadding="0" cellspacing="0">
@@ -77,7 +106,6 @@
 		<tr>
 			<td align="right"><label for="combometertype"><span data-i18n="Type">Type</span>: </label></td>
 			<td><select id="combometertype" style="width:150px" class="combobox ui-corner-all">
-			<!--#embed metertypes -->
 			</select></td>
 		</tr>
 		<tr>
@@ -89,11 +117,11 @@
 			<td><input type="text" id="meteroffset" style="width: 120px; padding: .4em;" class="text ui-widget-content ui-corner-all"></td>
 		</tr>
 		<tr id="customcounter">
-			<td align="right"><label for="valuequantity"><span data-i18n="Value Quantity (e.g. Weight)">Value Quantity (e.g. Weight)</span>: </label></td>
+			<td align="right"><label for="valuequantity"><span data-i18n="Axis Label"></span>: </label></td>
 			<td><input type="text" id="valuequantity" style="width: 140px; padding: .4em;" class="text ui-widget-content ui-corner-all"></td>
 		</tr>
 		<tr id="customcounter">
-			<td align="right"><label for="valueunits"><span data-i18n="Value Units (e.g. Kg)">Value Units (e.g. Kg)</span>: </label></td>
+			<td align="right"><label for="valueunits"><span data-i18n="Unit (e.g. Kg)"></span>: </label></td>
 			<td><input type="text" id="valueunits" style="width: 140px; padding: .4em;" class="text ui-widget-content ui-corner-all"></td>
 		</tr>
 		</table>
@@ -199,8 +227,16 @@
 			<td><input type="checkbox" id="protected"><label for="protected"></td>
 		</tr>
 		<tr>
-			<td align="right"><label><span data-i18n="Value">Value</span>: </label></td>
-			<td><input type="text" id="setpoint" style="width: 50px; padding: .4em;" class="text ui-widget-content ui-corner-all"> &deg; <span id="tempunit">C</span></td>
+			<td align="right"><label><span data-i18n="Unit">Unit</span>: </label></td>
+			<td><input type="text" id="unit" style="width: 50px; padding: .4em;" class="text ui-widget-content ui-corner-all"></td>
+		</tr>
+		<tr>
+			<td align="right"><label><span data-i18n="Step">Step</span>: </label></td>
+			<td>
+				<input type="text" id="step" style="width: 50px; padding: .4em;" class="text ui-widget-content ui-corner-all">&nbsp;
+				<label><span data-i18n="Min">Min</span>: </label>&nbsp;<input type="text" id="min" style="width: 60px; padding: .4em;" class="text ui-widget-content ui-corner-all">&nbsp;
+				<label><span data-i18n="Max">Max</span>: </label>&nbsp;<input type="text" id="max" style="width: 60px; padding: .4em;" class="text ui-widget-content ui-corner-all">
+			</td>
 		</tr>
 		</table>
 	</form>
@@ -298,7 +334,9 @@
 
 <div class="container">
 	<gz-back-to-top></gz-back-to-top>
-	<div id="utilitycontent"></div>
+	<div ng-include="'views/inc_topbar.html'"></div>
+
+	<div id="utilitycontent" class="devicesList"></div>
 </div>
 
 <div id="percentagelog" style="display:none;">

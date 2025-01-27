@@ -4,7 +4,6 @@
 #include "../main/Logger.h"
 #include "../httpclient/HTTPClient.h"
 #include "hardwaretypes.h"
-#include "../main/localtime_r.h"
 #include "../main/mainworker.h"
 #include "../main/SQLHelper.h"
 #include <sstream>
@@ -207,16 +206,16 @@ bool CDaikin::WriteToHardware(const char *pdata, const unsigned char /*length*/)
 			result = SetF_DirLevel(pSwitch->level);
 		}
 	}
-	else if ((packettype == pTypeThermostat) && (subtype == sTypeThermSetpoint))
+	else if ((packettype == pTypeSetpoint) && (subtype == sTypeSetpoint))
 	{
 		// Set Point
-		const _tThermostat *pMeter = reinterpret_cast<const _tThermostat *>(pCmd);
+		const _tSetpoint* pMeter = reinterpret_cast<const _tSetpoint*>(pCmd);
 		int node_id = pMeter->id2;
 		// int child_sensor_id = pMeter->id3;
 
-		Debug(DEBUG_HARDWARE, "Worker %s, Thermostat %.1f", m_szIPAddress.c_str(), pMeter->temp);
+		Debug(DEBUG_HARDWARE, "Worker %s, Thermostat %.1f", m_szIPAddress.c_str(), pMeter->value);
 
-		result = SetSetpoint(node_id, pMeter->temp);
+		result = SetSetpoint(node_id, pMeter->value);
 	}
 	else
 	{
@@ -424,7 +423,7 @@ void CDaikin::GetControlInfo()
 			if (m_stemp != results2[1])
 			{
 				m_stemp = results2[1];
-				SendSetPointSensor(20, 1, 1, static_cast<float>(atof(results2[1].c_str())), "Target Temperature");
+				SendSetPointSensor(0, 20, 1, 1, 1, 255, static_cast<float>(atof(results2[1].c_str())), "Target Temperature");
 			}
 		}
 		else if (results2[0] == "f_rate")
@@ -745,7 +744,7 @@ void CDaikin::InsertUpdateSwitchSelector(uint32_t Idx, const bool bIsOn, const i
 				customimage = 7;
 			}
 		}
-		m_sql.safe_query("UPDATE DeviceStatus SET Name='%q', SwitchType=%d, CustomImage=%i WHERE(HardwareID == %d) AND (DeviceID == '0000000%d') AND (Unit == '%d')", defaultname.c_str(),
+		m_sql.safe_query("UPDATE DeviceStatus SET Name='%q', SwitchType=%d, CustomImage=%i WHERE (HardwareID == %d) AND (DeviceID == '0000000%d') AND (Unit == '%d')", defaultname.c_str(),
 				 (switchtype), customimage, m_HwdID, Idx, xcmd.unitcode);
 
 		result = m_sql.safe_query("SELECT ID FROM DeviceStatus WHERE (HardwareID==%d) AND (DeviceID=='0000000%d') AND (Type==%d) AND (Unit == '%d')", m_HwdID, Idx, xcmd.type, xcmd.unitcode);
@@ -786,7 +785,7 @@ bool CDaikin::SetSetpoint(const int /*idx*/, const float temp)
 	std::string sTmp = std_format("%.1f", temp);
 	AggregateSetControlInfo(sTmp.c_str(), nullptr, nullptr, nullptr, nullptr, nullptr);
 
-	SendSetPointSensor(20, 1, 1, temp, "Target Temperature"); // Suppose request succeed to keep reactive web interface
+	SendSetPointSensor(0, 20, 1, 1, 1, 255, temp, "Target Temperature"); // Suppose request succeed to keep reactive web interface
 	return true;
 }
 

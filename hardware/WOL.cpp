@@ -92,7 +92,7 @@ bool GenerateWOLPacket(unsigned char *pPacket, const std::string &MACAddress)
 
 bool CWOL::SendWOLPacket(const unsigned char *pPacket)
 {
-	int udpSocket;
+	SOCKET udpSocket;
 	struct sockaddr_in udpClient, udpServer;
 
 	udpSocket = socket(AF_INET, SOCK_DGRAM, 0);
@@ -192,7 +192,7 @@ void CWOL::AddNode(const std::string &Name, const std::string &MACAddress)
 	sprintf(szID, "%X%02X%02X%02X", 0, 0, (ID & 0xFF00) >> 8, ID & 0xFF);
 
 	//Also add a light (push) device
-	m_sql.InsertDevice(m_HwdID, szID, 1, pTypeLighting2, sTypeAC, STYPE_PushOn, 1, " ", Name, 12, 255, 1);
+	m_sql.InsertDevice(m_HwdID, 0, szID, 1, pTypeLighting2, sTypeAC, STYPE_PushOn, 1, " ", Name, 12, 255, 1);
 }
 
 bool CWOL::UpdateNode(const int ID, const std::string &Name, const std::string &MACAddress)
@@ -299,7 +299,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_WOL)
 				return;
-			CWOL *pHardware = reinterpret_cast<CWOL*>(pBaseHardware);
+			CWOL *pHardware = dynamic_cast<CWOL*>(pBaseHardware);
 
 			root["status"] = "OK";
 			root["title"] = "WOLAddNode";
@@ -326,7 +326,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_WOL)
 				return;
-			CWOL *pHardware = reinterpret_cast<CWOL*>(pBaseHardware);
+			CWOL *pHardware = dynamic_cast<CWOL*>(pBaseHardware);
 
 			int NodeID = atoi(nodeid.c_str());
 			root["status"] = "OK";
@@ -352,7 +352,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_WOL)
 				return;
-			CWOL *pHardware = reinterpret_cast<CWOL*>(pBaseHardware);
+			CWOL *pHardware = dynamic_cast<CWOL*>(pBaseHardware);
 
 			int NodeID = atoi(nodeid.c_str());
 			root["status"] = "OK";
@@ -377,7 +377,7 @@ namespace http {
 				return;
 			if (pBaseHardware->HwdType != HTYPE_WOL)
 				return;
-			CWOL *pHardware = reinterpret_cast<CWOL*>(pBaseHardware);
+			CWOL *pHardware = dynamic_cast<CWOL*>(pBaseHardware);
 
 			root["status"] = "OK";
 			root["title"] = "WOLClearNodes";

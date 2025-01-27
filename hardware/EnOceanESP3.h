@@ -11,12 +11,12 @@
 // 550 bytes buffer is enough for one ESP3 packet, EnOceanLink 1.8.1.0, eoPacket.h
 #define ESP3_PACKET_BUFFER_SIZE 550
 
-class CEnOceanESP3 : public CEnOceanEEP, public AsyncSerial, public CDomoticzHardwareBase
+class CEnOceanESP3 : public enocean::CEnOceanEEP, public AsyncSerial, public CDomoticzHardwareBase
 {
 public:
 	enum TeachinMode : uint8_t
 	{
-		GENERIC_NODE = 0,
+		GENERIC_NODE = 0, // WARNING : Do not change this value !!
 		TEACHEDIN_NODE = 1,
 		VIRTUAL_NODE = 2
 	};
@@ -39,12 +39,25 @@ public:
 
 	bool WriteToHardware(const char *pdata, unsigned char length) override;
 
+	void ResetHardware();
+
+	void GetNodesJSON(Json::Value &root);
+
+	void EnableLearnMode(const uint32_t minutes);
+	void DisableLearnMode();
+	bool IsLearnModeEnabled();
+	int IsNodeTeachedInJSON(Json::Value &root);
+
 	NodeInfo *GetNodeInfo(const uint32_t nodeID);
 
 	void TeachInNode(const uint32_t nodeID, const uint16_t manID,
-		const uint8_t RORG, const uint8_t func, const uint8_t type,
-		const TeachinMode teachin_mode);
+					 const uint8_t RORG, const uint8_t func, const uint8_t type,
+					 const TeachinMode teachin_mode);
+	void TeachInVirtualNode(const uint32_t nodeID, const uint8_t RORG, const uint8_t func, const uint8_t type);
 	void CheckAndUpdateNodeRORG(NodeInfo *pNode, const uint8_t RORG);
+	void UpdateNode(const uint32_t nodeID, const std::string &name, const uint16_t manID, const uint8_t RORG, const uint8_t func, const uint8_t type, const std::string &description);
+	void DeleteNode(const uint32_t nodeID);
+	std::string GetNodeState(const uint32_t nodeID);
 
 	uint32_t m_id_base;
 	uint32_t m_id_chip;
@@ -117,21 +130,24 @@ private:
 	std::mutex m_sendMutex;
 	std::vector<std::string> m_sendqueue;
 
+	bool m_learn_mode_enabled;
+	uint32_t m_last_teachedin_nodeID;
 	uint32_t m_RPS_teachin_nodeID;
 	uint8_t m_RPS_teachin_DATA;
 	uint8_t m_RPS_teachin_STATUS;
 	time_t m_RPS_teachin_timer;
 	uint8_t m_RPS_teachin_count;
 
-	int LastPosition = -1;
+	// Keep track of requested blind position.
+	// If the same position request is sent to the same node twice, it is translated to a "Stop" command.
+	// For example:
+	//	- press the button to close the blind, it starts to close
+	//	- press the button again, it stops where it is
 
-	void createOtherVldUteDevices(uint32_t iSenderID, uint8_t rorg, uint8_t func, uint8_t type, uint8_t nb_channel);
-	bool manageVldMessage(uint32_t iSenderID, unsigned char *vldData, uint8_t func, uint8_t type, std::string &m_Name, uint8_t rssi);
-    std::string GetDbValue(const char* tableName, const char* fieldName, const char* whereFieldName, const char* whereFielValue);
-    void sendVld    (unsigned int sID , unsigned int destID , int channel, int value);
-	void sendVld    (unsigned int sID , unsigned int destID , unsigned char *data, int DataLen );
-	uint32_t sendVld(unsigned int unitBaseAddr, unsigned int destID ,T_DATAFIELD * OffsetDes,  ...);
-	uint32_t senDatadVld(unsigned int unitBaseAddr, unsigned int destID ,T_DATAFIELD* OffsetDes, int* values, int NbValues);
+	uint32_t m_last_blind_nodeID = 0;
+	uint8_t m_last_blind_position = 0xFF;
+	std::string GetDbValue(const char *tableName, const char *fieldName, const char *whereFieldName, const char *whereFielValue);
+	void sendVld(unsigned int sID, unsigned int destID, int channel, int value);
+	void sendVld(unsigned int sID, unsigned int destID, unsigned char *data, int DataLen);
+	uint32_t sendVld(unsigned int unitBaseAddr, unsigned int destID, enocean::T_DATAFIELD *OffsetDes, ...);
 };
-
-int getPositionFromCommandLevel(int cmnd, int pos);

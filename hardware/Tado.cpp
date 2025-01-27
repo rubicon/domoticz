@@ -13,7 +13,6 @@
 #include "../main/Helper.h"
 #include "../main/Logger.h"
 #include "hardwaretypes.h"
-#include "../main/localtime_r.h"
 #include "../main/RFXtrx.h"
 #include "../main/SQLHelper.h"
 #include "../httpclient/HTTPClient.h"
@@ -24,7 +23,7 @@
 #include "Tado.h"
 
 #define TADO_POLL_INTERVAL 30		// The plugin should collect information from the API every n seconds.
-#define TADO_API_ENVIRONMENT_URL "https://my.tado.com/webapp/env.js"
+#define TADO_API_ENVIRONMENT_URL "https://app.tado.com/env.js"
 #define TADO_TOKEN_MAXLOOPS 12		// Default token validity is 600 seconds before it needs to be refreshed.
 									// Each cycle takes 30-35 seconds, so let's stay a bit on the safe side.
 
@@ -418,16 +417,14 @@ void CTado::SendSetPointSensor(const int Idx, const float Temp, const std::strin
 	int ZoneIdx = (Idx % 1000) / 100;
 	int ServiceIdx = (Idx % 1000) % 100;
 
-	_tThermostat thermos;
-	thermos.subtype = sTypeThermSetpoint;
+	_tSetpoint thermos;
+	thermos.subtype = sTypeSetpoint;
 	thermos.id1 = 0;
 	thermos.id2 = HomeIdx;
 	thermos.id3 = ZoneIdx;
 	thermos.id4 = ServiceIdx;
 	thermos.dunit = 0;
-
-	thermos.temp = Temp;
-
+	thermos.value = Temp;
 	sDecodeRXMessage(this, (const unsigned char *)&thermos, defaultname.c_str(), 255, nullptr);
 }
 

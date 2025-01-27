@@ -45,25 +45,25 @@ define(['app', 'lodash', 'RefreshingChart', 'DataLoader', 'ChartLoader', 'log/Ch
                                 preprocessData: subtype.preprocessDayData,
                                 preprocessDataItems: subtype.preprocessDayDataItems
                             },
-                            subtype.daySeriesSuppliers(self.device.SwitchTypeVal)
+                            subtype.daySeriesSuppliers(self.device.SwitchTypeVal, self.device.Divider)
                         )
                     );
                 }
             }
         });
 
-        app.component('counterWeekChart', {
+        app.component('counterHourChart', {
             require: {
                 logCtrl: '^deviceCounterLog'
             },
             bindings: {
                 device: '<'
             },
-            templateUrl: 'app/log/chart-week.html',
+            templateUrl: 'app/log/chart-hour.html',
             controllerAs: 'vm',
             controller: function ($location, $route, $scope, $timeout, $element, domoticzGlobals, domoticzApi, domoticzDataPointApi, chart, counterLogParams, counterLogSubtypeRegistry) {
                 const self = this;
-                self.range = 'week';
+                self.range = 'hour';
 
                 self.$onInit = function () {
                     const subtype = counterLogSubtypeRegistry.get(self.logCtrl.subtype);
@@ -71,18 +71,18 @@ define(['app', 'lodash', 'RefreshingChart', 'DataLoader', 'ChartLoader', 'log/Ch
                         chart.baseParams($),
                         chart.angularParams($location, $route, $scope, $timeout, $element),
                         chart.domoticzParams(domoticzGlobals, domoticzApi, domoticzDataPointApi),
-                        counterLogParams.chartParamsWeek(domoticzGlobals, self,
-                            subtype.chartParamsWeekTemplate,
+                        counterLogParams.chartParamsHour(domoticzGlobals, self,
+                            subtype.chartParamsHourTemplate,
                             {
                                 isShortLogChart: false,
-                                yAxes: subtype.yAxesWeek(self.device.SwitchTypeVal),
+                                yAxes: subtype.yAxesHour(self.device.SwitchTypeVal),
                                 timestampFromDataItem: function (dataItem, yearOffset = 0) {
-                                    return GetLocalDateFromString(dataItem.d, yearOffset);
+                                    return GetLocalDateTimeFromString(dataItem.d, yearOffset);
                                 },
-                                preprocessData: subtype.preprocesWeeksData,
-                                preprocessDataItems: subtype.preprocessWeekDataItems
+                                preprocessData: subtype.preprocessHourData,
+                                preprocessDataItems: subtype.preprocessHourDataItems
                             },
-                            subtype.weekSeriesSuppliers(self.device.SwitchTypeVal)
+                            subtype.hourSeriesSuppliers(self.device.SwitchTypeVal, self.device.Divider)
                         )
                     );
                 }
@@ -119,7 +119,7 @@ define(['app', 'lodash', 'RefreshingChart', 'DataLoader', 'ChartLoader', 'log/Ch
                                 preprocessData: subtype.preprocessMonthYearData,
                                 preprocessDataItems: subtype.preprocessMonthYearDataItems
                             },
-                            subtype.monthYearSeriesSuppliers(self.device.SwitchTypeVal)
+                            subtype.monthYearSeriesSuppliers(self.device.SwitchTypeVal, self.device.Divider)
                         )
                     );
                 }
@@ -156,7 +156,7 @@ define(['app', 'lodash', 'RefreshingChart', 'DataLoader', 'ChartLoader', 'log/Ch
                                 preprocessData: subtype.preprocessMonthYearData,
                                 preprocessDataItems: subtype.preprocessMonthYearDataItems
                             },
-                            subtype.monthYearSeriesSuppliers(self.device.SwitchTypeVal)
+                            subtype.monthYearSeriesSuppliers(self.device.SwitchTypeVal, self.device.Divider)
                         )
                     );
                 }
@@ -192,6 +192,8 @@ define(['app', 'lodash', 'RefreshingChart', 'DataLoader', 'ChartLoader', 'log/Ch
                                     return subtype.extendDataRequestCompare.call(self, dataRequest);
                                 },
                                 preprocessData: function (data) {
+									this.deviceCounterName = self.device.ValueQuantity;
+									
                                     if (subtype.preprocessCompareData !== undefined) {
                                         subtype.preprocessCompareData.call(self, data);
                                     }

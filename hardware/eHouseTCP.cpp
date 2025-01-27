@@ -55,7 +55,6 @@ h l O nr
 #include "../main/Helper.h"
 #include "../main/Logger.h"
 #include "../main/RFXtrx.h"
-#include "../main/localtime_r.h"
 #include "../main/SQLHelper.h"
 //#include <vector>
 //#include <thread>
@@ -66,7 +65,6 @@ h l O nr
 
 #define EHOUSE_TEMP_POLL_INTERVAL_MS 120 * 1000 // 120 sec
 
-#define round(a) (int)(a + .5)
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // Init Structures on start
 void eHouseTCP::InitStructs()
@@ -262,11 +260,11 @@ int eHouseTCP::UpdateSQLState(int devh, const uint8_t devl, int devtype, const u
 	{
 		/// GIZ		!!! Your solution NOT WORKING eg, not setting used=1 and is not sufficient We update devicestatus, and add RoomPlan for each controller
 		// i = m_sql.InsertDevice(m_HwdID, IDX, devl, type, subtype, swtype, nValue, sValue, devname, signal, battery, 1);
-		m_sql.safe_query("INSERT INTO DeviceStatus (HardwareID, DeviceID, Unit, Type, SubType, SignalLevel, BatteryLevel, nValue, sValue, Name, Used, SwitchType ) VALUES ('%d', '%q', "
-				 "'%d','%d', '%d', '%d', '%d', '%d', '%q', '%q', 1, %d)",
-				 m_HwdID, IDX, devl, type, subtype, signal, battery, nValue, sValue, devname.c_str(), swtype);
+		m_sql.safe_query("INSERT INTO DeviceStatus (HardwareID, OrgHardwareID, DeviceID, Unit, Type, SubType, SignalLevel, BatteryLevel, nValue, sValue, Name, Used, SwitchType ) "
+			"VALUES (%d, '%q', %d, %d,%d, %d, %d, %d, %d, '%q', '%q', 1, %d)",
+				 m_HwdID, 0, IDX, devl, type, subtype, signal, battery, nValue, sValue, devname.c_str(), swtype);
 
-		result = m_sql.safe_query("SELECT ID FROM DeviceStatus WHERE (HardwareID==%d) AND (DeviceID=='%q') AND (Unit==%d)", m_HwdID, IDX, devl);
+		result = m_sql.safe_query("SELECT ID FROM DeviceStatus WHERE (HardwareID==%d) AND (OrgHardwareID==%d) AND (DeviceID=='%q') AND (Unit==%d)", m_HwdID, 0, IDX, devl);
 
 		// add Plan for each controllers
 		if (!result.empty())
@@ -331,13 +329,10 @@ int eHouseTCP::UpdateSQLPlan(int /*devh*/, int /*devl*/, int /*devtype*/, const 
 // Update eHouse Controllers status in DeviceStatus Database
 void eHouseTCP::UpdateSQLStatus(int devh, int devl, int /*devtype*/, int code, int nr, char /*signal*/, int nValue, const char *sValue, int /*battery*/)
 {
+	//GizMoCuz: This should be done via CDomoticzHardwareBase::SendSwitch?
 	char IDX[20];
 	char state[5] = "";
-	char szLastUpdate[40];
-	time_t now = time(nullptr);
-	struct tm ltime;
-	localtime_r(&now, &ltime);
-	sprintf(szLastUpdate, "%04d-%02d-%02d %02d:%02d:%02d", ltime.tm_year + 1900, ltime.tm_mon + 1, ltime.tm_mday, ltime.tm_hour, ltime.tm_min, ltime.tm_sec);
+	std::string sLastUpdate = TimeToString(nullptr, TF_DateTime);
 	sprintf(IDX, "%02X%02X%02X%02X", devh, devl, code, nr);
 	int lastlevel = 0;
 	int _state;
@@ -368,11 +363,11 @@ void eHouseTCP::UpdateSQLStatus(int devh, int devl, int /*devtype*/, int code, i
 				_state = 2;
 				sprintf(state, "%d", static_cast<uint8_t>((nValue * 15) / 100));
 			}
-			result = m_sql.safe_query("UPDATE DeviceStatus  SET nValue=%d, sValue='%q', LastLevel=%d, LastUpdate='%q' WHERE (HardwareID==%d) AND (DeviceID=='%q')", _state, state,
-						  lastlevel, szLastUpdate, m_HwdID, IDX);
+			result = m_sql.safe_query("UPDATE DeviceStatus SET nValue=%d, sValue='%q', LastLevel=%d, LastUpdate='%q' WHERE (HardwareID==%d) AND (DeviceID=='%q')", _state, state,
+						  lastlevel, sLastUpdate.c_str(), m_HwdID, IDX);
 			break;
 		default:
-			result = m_sql.safe_query("UPDATE DeviceStatus  SET nValue=%d, sValue='%s', LastUpdate='%q'  WHERE (HardwareID==%d) AND (DeviceID=='%q')", nValue, sValue, szLastUpdate,
+			result = m_sql.safe_query("UPDATE DeviceStatus SET nValue=%d, sValue='%s', LastUpdate='%q'  WHERE (HardwareID==%d) AND (DeviceID=='%q')", nValue, sValue, sLastUpdate.c_str(),
 						  m_HwdID, IDX);
 			break;
 	}
@@ -464,7 +459,7 @@ eHouseTCP::eHouseTCP(const int ID, const std::string &IPAddress, const unsigned 
 	}
 
 	_log.Debug(DEBUG_HARDWARE, "[eHouse] Opts: %x,%x\r\n", m_eHOptA, m_eHOptB);
-	int len = userCode.length();
+	size_t len = userCode.length();
 	if (len > 6)
 		len = 6;
 	userCode.copy(m_PassWord, len);
@@ -572,7 +567,7 @@ bool eHouseTCP::StopHardware()
 	return true;
 }
 ///////////////////////////////////////////////////////////////////////////////////
-int eHouseTCP::ConnectTCP(unsigned int IP)
+SOCKET eHouseTCP::ConnectTCP(unsigned int IP)
 {
 	unsigned char challange[30];
 #ifndef WIN32
@@ -593,7 +588,7 @@ int eHouseTCP::ConnectTCP(unsigned int IP)
 
 	struct sockaddr_in server;
 	struct sockaddr_in saddr;
-	int TCPSocket = -1;
+	SOCKET TCPSocket = INVALID_SOCKET;
 	saddr.sin_family = AF_INET; // initialization of protocol & socket
 	if (IP > 0)
 		saddr.sin_addr.s_addr = IP;
@@ -956,15 +951,15 @@ bool eHouseTCP::WriteToHardware(const char *pdata, const unsigned char /*length*
 		id = getrealRMpgm(ID, level);
 	}
 
-	if ((output->ICMND.packettype == pTypeThermostat) && (output->ICMND.subtype == sTypeThermSetpoint))
+	if ((output->ICMND.packettype == pTypeSetpoint) && (output->ICMND.subtype == sTypeSetpoint))
 	{
-		const _tThermostat *therm = reinterpret_cast<const _tThermostat *>(pdata);
+		const _tSetpoint*therm = reinterpret_cast<const _tSetpoint*>(pdata);
 		AddrH = therm->id1;
 		AddrL = therm->id2;
 		cmd = therm->id3;
 		nr = therm->id4;
 
-		float temp = therm->temp;
+		float temp = therm->value;
 		int ttemp = (int)(temp * 10);
 
 		ev[0] = AddrH;
@@ -991,7 +986,7 @@ bool eHouseTCP::WriteToHardware(const char *pdata, const unsigned char /*length*
 
 		if (m_Dtype == EH_AURA)
 		{
-			unsigned int adcvalue = (int)round(temp);
+			unsigned int adcvalue = ground(temp);
 			ev[3] = 0; // nr ==0
 			ev[4] = 3; // set value
 			ev[5] = (uint8_t)(adcvalue / 10);

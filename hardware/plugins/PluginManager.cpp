@@ -17,7 +17,6 @@
 #include "../../main/EventSystem.h"
 #include "../../main/Helper.h"
 #include "../../main/mainworker.h"
-#include "../../main/localtime_r.h"
 #include "../../main/Logger.h"
 #include "../../main/SQLHelper.h"
 #include "../../main/WebServer.h"
@@ -31,7 +30,9 @@
 #include "DelayedLink.h"
 #include "../../main/EventsPythonModule.h"
 
-#define MINIMUM_PYTHON_VERSION "3.4.0"
+// Python version constants
+#define MINIMUM_MAJOR_VERSION 3
+#define MINIMUM_MINOR_VERSION 4
 
 #define ATTRIBUTE_VALUE(pElement, Name, Value) \
 		{	\
@@ -105,9 +106,18 @@ namespace Plugins {
 			}
 
 			std::string sVersion = szPyVersion.substr(0, szPyVersion.find_first_of(' '));
-			if (sVersion < MINIMUM_PYTHON_VERSION)
+
+			std::string sMajorVersion = sVersion.substr(0, sVersion.find_first_of('.'));
+			if (std::stoi(sMajorVersion) < MINIMUM_MAJOR_VERSION)
 			{
-				_log.Log(LOG_STATUS, "PluginSystem: Invalid Python version '%s' found, '%s' or above required.", sVersion.c_str(), MINIMUM_PYTHON_VERSION);
+				_log.Log(LOG_STATUS, "PluginSystem: Invalid Python version '%s' found, Major version '%d' or above required.", sVersion.c_str(), MINIMUM_MAJOR_VERSION);
+				return false;
+			}
+
+			std::string sMinorVersion = sVersion.substr(sMajorVersion.length()+1);
+			if (std::stoi(sMinorVersion) < MINIMUM_MINOR_VERSION)
+			{
+				_log.Log(LOG_STATUS, "PluginSystem: Invalid Python version '%s' found, Minor version '%d.%d' or above required.", sVersion.c_str(), MINIMUM_MAJOR_VERSION, MINIMUM_MINOR_VERSION);
 				return false;
 			}
 
@@ -272,7 +282,7 @@ namespace Plugins {
 		{
 			_log.Log(LOG_STATUS, "PluginSystem: '%s' Registration ignored, Plugins are not enabled.", Name.c_str());
 		}
-		return reinterpret_cast<CDomoticzHardwareBase*>(pPlugin);
+		return dynamic_cast<CDomoticzHardwareBase*>(pPlugin);
 	}
 
 	void CPluginSystem::DeregisterPlugin(const int HwdID)
@@ -338,7 +348,7 @@ namespace Plugins {
 			return;
 		//std::vector<std::string> sd = result[0];
 		//GizMoCuz: Why does this work with UNIT ? Why not use the device idx which is always unique ?
-		_log.Debug(DEBUG_NORM, "CPluginSystem::DeviceModified: Notifying plugin %u about modification of device %u", atoi(sHwdID.c_str()), atoi(Unit.c_str()));
+		_log.Debug(DEBUG_NORM, "CPluginSystem::DeviceModified: Notifying plugin %s about modification of device %s", sHwdID.c_str(), Unit.c_str());
 		Plugins::CPlugin *pPlugin = (Plugins::CPlugin*)pHardware;
 		pPlugin->DeviceModified(sd[1], atoi(Unit.c_str()));
 	}

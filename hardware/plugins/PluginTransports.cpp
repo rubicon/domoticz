@@ -15,6 +15,8 @@
 
 namespace Plugins {
 
+	extern PyTypeObject* CConnectionType;
+
 	void CPluginTransport::configureTimeout()
 	{
 		if (m_pConnection->Timeout)
@@ -198,8 +200,6 @@ namespace Plugins {
 	{
 		try
 		{
-			PyType_Ready(&CConnectionType);
-
 			if (!m_Socket)
 			{
 				if (!m_Acceptor)
@@ -239,8 +239,21 @@ namespace Plugins {
 			std::string sAddress = remote_ep.address().to_string();
 			std::string sPort = std::to_string(remote_ep.port());
 
-			CConnection *pConnection
-				= (CConnection *)CConnection_new(&CConnectionType, (PyObject *)nullptr, (PyObject *)nullptr);
+			PyNewRef nrArgList = Py_BuildValue("(sssss)",
+				std::string(sAddress+":"+sPort).c_str(),
+				PyUnicode_AsUTF8(((CConnection*)m_pConnection)->Transport),
+				PyUnicode_AsUTF8(((CConnection*)m_pConnection)->Protocol),
+				sAddress.c_str(),
+				sPort.c_str());
+			if (!nrArgList)
+			{
+				pPlugin->Log(LOG_ERROR, "Building connection argument list failed for TCP %s:%s.", sAddress.c_str(), sPort.c_str());
+			}
+			CConnection* pConnection = (CConnection*)PyObject_CallObject((PyObject*)CConnectionType, nrArgList);
+			if (!pConnection)
+			{
+				pPlugin->Log(LOG_ERROR, "Connection object creation failed for TCP %s:%s.", sAddress.c_str(), sPort.c_str());
+			}
 			CPluginTransportTCP* pTcpTransport = new CPluginTransportTCP(m_HwdID, pConnection, sAddress, sPort);
 			Py_DECREF(pConnection);
 
@@ -252,20 +265,10 @@ namespace Plugins {
 
 			// Configure Python Connection object
 			pConnection->pTransport = pTcpTransport;
-			Py_XDECREF(pConnection->Name);
-			pConnection->Name = PyUnicode_FromString(std::string(sAddress+":"+sPort).c_str());
-			Py_XDECREF(pConnection->Address);
-			pConnection->Address = PyUnicode_FromString(sAddress.c_str());
-			Py_XDECREF(pConnection->Port);
-			pConnection->Port = PyUnicode_FromString(sPort.c_str());
 
 			Py_XDECREF(pConnection->Parent);
 			pConnection->Parent = (PyObject*)m_pConnection;
 			Py_INCREF(m_pConnection);
-			pConnection->Transport = ((CConnection*)m_pConnection)->Transport;
-			Py_INCREF(pConnection->Transport);
-			pConnection->Protocol = ((CConnection*)m_pConnection)->Protocol;
-			Py_INCREF(pConnection->Protocol);
 			pConnection->Target = ((CConnection *)m_pConnection)->Target;
 			if (pConnection->Target)
 				Py_INCREF(pConnection->Target);
@@ -367,14 +370,14 @@ namespace Plugins {
 		{
 			try
 			{
-				int	iSentBytes = boost::asio::write(*m_Socket, boost::asio::buffer(pMessage, pMessage.size()));
+				size_t iSentBytes = boost::asio::write(*m_Socket, boost::asio::buffer(pMessage, pMessage.size()));
 				m_iTotalBytes += iSentBytes;
 				if (iSentBytes != pMessage.size())
 				{
 					CPlugin* pPlugin = ((CConnection*)m_pConnection)->pPlugin;
 					if (!pPlugin)
 						return;
-					pPlugin->Log(LOG_ERROR, "Not all data written to socket (%s:%s). %d expected, %d written", m_IP.c_str(), m_Port.c_str(), int(pMessage.size()), iSentBytes);
+					pPlugin->Log(LOG_ERROR, "Not all data written to socket (%s:%s). %d expected, %d written", m_IP.c_str(), m_Port.c_str(), int(pMessage.size()), int(iSentBytes));
 				}
 			}
 			catch (std::exception & e)
@@ -441,7 +444,7 @@ namespace Plugins {
 		{
 			try
 			{
-				int		iSentBytes = boost::asio::write(*m_TLSSock, boost::asio::buffer(pMessage, pMessage.size()));
+				size_t iSentBytes = boost::asio::write(*m_TLSSock, boost::asio::buffer(pMessage, pMessage.size()));
 				m_iTotalBytes += iSentBytes;
 				if (iSentBytes != pMessage.size())
 				{
@@ -449,7 +452,7 @@ namespace Plugins {
 					if (!pPlugin)
 						return;
 					pPlugin->Log(LOG_ERROR, "Not all data written to secure socket (%s:%s). %d expected, %d written", m_IP.c_str(), m_Port.c_str(), int(pMessage.size()),
-						     iSentBytes);
+						     int(iSentBytes));
 				}
 			}
 			catch (std::exception & e)
@@ -626,8 +629,6 @@ namespace Plugins {
 	{
 		try
 		{
-			PyType_Ready(&CConnectionType);
-
 			if (!m_Socket)
 			{
 				boost::system::error_code ec;
@@ -680,21 +681,22 @@ namespace Plugins {
 			std::string sAddress = m_remote_endpoint.address().to_string();
 			std::string sPort = std::to_string(m_remote_endpoint.port());
 
-			CConnection *pConnection
-				= (CConnection *)CConnection_new(&CConnectionType, (PyObject *)nullptr, (PyObject *)nullptr);
+			PyNewRef nrArgList = Py_BuildValue("(sssss)", 
+												PyUnicode_AsUTF8(((CConnection*)m_pConnection)->Name), 
+												PyUnicode_AsUTF8(((CConnection*)m_pConnection)->Transport),
+												PyUnicode_AsUTF8(((CConnection*)m_pConnection)->Protocol),
+												sAddress.c_str(),
+												sPort.c_str());
+			if (!nrArgList)
+			{
+				pPlugin->Log(LOG_ERROR, "Building connection argument list failed for UDP %s:%s.", sAddress.c_str(), sPort.c_str());
+			}
+			CConnection* pConnection = (CConnection*)PyObject_CallObject((PyObject*)CConnectionType, nrArgList);
+			if (!pConnection)
+			{
+				pPlugin->Log(LOG_ERROR, "Connection object creation failed for UDP %s:%s.", sAddress.c_str(), sPort.c_str());
+			}
 
-			// Configure temporary Python Connection object
-			Py_XDECREF(pConnection->Name);
-			pConnection->Name = ((CConnection*)m_pConnection)->Name;
-			Py_INCREF(pConnection->Name);
-			Py_XDECREF(pConnection->Address);
-			pConnection->Address = PyUnicode_FromString(sAddress.c_str());
-			Py_XDECREF(pConnection->Port);
-			pConnection->Port = PyUnicode_FromString(sPort.c_str());
-			pConnection->Transport = ((CConnection*)m_pConnection)->Transport;
-			Py_INCREF(pConnection->Transport);
-			pConnection->Protocol = ((CConnection*)m_pConnection)->Protocol;
-			Py_INCREF(pConnection->Protocol);
 			pConnection->Target = ((CConnection *)m_pConnection)->Target;
 			if (pConnection->Target)
 				Py_INCREF(pConnection->Target);
@@ -758,12 +760,12 @@ namespace Plugins {
 			{
 				m_Socket->set_option(boost::asio::socket_base::broadcast(true));
 				boost::asio::ip::udp::endpoint destination(boost::asio::ip::address_v4::broadcast(), atoi(m_Port.c_str()));
-				int bytes_transferred = m_Socket->send_to(boost::asio::buffer(pMessage, pMessage.size()), destination);
+				size_t bytes_transferred = m_Socket->send_to(boost::asio::buffer(pMessage, pMessage.size()), destination);
 			}
 			else
 			{
 				boost::asio::ip::udp::endpoint destination(boost::asio::ip::address::from_string(m_IP.c_str()), atoi(m_Port.c_str()));
-				int bytes_transferred = m_Socket->send_to(boost::asio::buffer(pMessage, pMessage.size()), destination);
+				size_t bytes_transferred = m_Socket->send_to(boost::asio::buffer(pMessage, pMessage.size()), destination);
 			}
 		}
 		catch (boost::system::system_error err)
@@ -869,6 +871,8 @@ namespace Plugins {
 			{
 				m_Socket->async_receive_from(boost::asio::buffer(m_Buffer, sizeof m_Buffer), m_Endpoint, [this](auto &&err, auto bytes) { handleRead(err, bytes); });
 			}
+
+			m_pConnection->pPlugin->MessagePlugin(new ProtocolDirective(m_pConnection));
 		}
 		catch (std::exception& e)
 		{
